@@ -2,6 +2,7 @@
 #include "uart_server.h"
 #include "ble_server.h"
 #include "wifi_server.h"
+#include "cortex_config.h"
 
 Robot minihexa;
 UartServerManager uart;
@@ -26,6 +27,51 @@ Velocity_t vel = {0.0f,0.0f,0.0f};
 Vector_t pos = {0.0f,0.0f,0.0f};
 Euler_t att = {0.0f,0.0f,0.0f};
 
+static void apply_pose_message(const RecData_t &msg) {
+  pos.z = fmap((float)(int8_t)msg.data[5], 0.0f, 30.0f, 0.0f, 3.0f);
+  pos.x = fmap((float)(int8_t)msg.data[3], -50.0f, 50.0f, -3.0f, 3.0f);
+  pos.y = fmap((float)(int8_t)msg.data[4], -50.0f, 50.0f, -3.0f, 3.0f);
+
+  att.roll = fmap((float)(int8_t)msg.data[2], -50.0f, 50.0f, -20.0f, 20.0f);
+  att.pitch = fmap((float)(int8_t)msg.data[1], -50.0f, 50.0f, -20.0f, 20.0f);
+  att.yaw = fmap(-(float)(int8_t)msg.data[0], -50.0f, 50.0f, -60.0f, 60.0f);
+
+  uint32_t pose_time = msg.data[6] ? 200 : 0;
+  minihexa.pose_leg_lift_mask = msg.data[7];
+  minihexa.pose_leg_lift_sign_flip = msg.data[9];
+  minihexa.pose_leg_lift_z = fmap((float)(int8_t)msg.data[8], 0.0f, 30.0f, 0.0f, 5.5f);
+  minihexa.pose_stance_mask = msg.data[10];
+  minihexa.pose_stance_spread = fmap((float)(int8_t)msg.data[11], 0.0f, 30.0f, 0.0f, 1.0f);
+
+  if(vel.vx == 0.0f && vel.vy == 0.0f && vel.omega == 0.0f) {
+    minihexa.move(&vel, &pos, &att, pose_time);
+  }
+  else {
+    minihexa.move(&vel, &pos, &att);
+  }
+}
+
+static void apply_rgb_message(const RecData_t &msg) {
+  set_rgb[0] = msg.data[0];
+  set_rgb[1] = msg.data[1];
+  set_rgb[2] = msg.data[2];
+
+  rgb[0] = set_rgb[0];
+  rgb[1] = set_rgb[1];
+  rgb[2] = set_rgb[2];
+
+  minihexa.sensor.set_ultrasound_rgb(RGB_WORK_SOLID_MODE, rgb, rgb);
+}
+
+static void reply_print(const char *frame) {
+  if(ble_server.state == SWITCH_WIFI) {
+    wifi_server.tcpClient.print(frame);
+  }
+  else {
+    Serial.print(frame);
+  }
+}
+
 void  uart_receive_callback() {
   uart.receive_message();
   if(uart.rec.mode == MINIHEXA_ACTION_GROUP_STOP) {
@@ -37,8 +83,16 @@ void setup() {
   minihexa.begin();
   uart.begin();
   uart.on_receive(uart_receive_callback);
+  cortex_config.begin();
   ble_server.begin();
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFiServerManager::station_begin();
+  String ssid = cortex_config.wifi_ssid();
+  if(ssid.length() > 0) {
+    WiFi.begin(ssid.c_str(), cortex_config.wifi_password().c_str());
+  }
+  else {
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  }
 }
 
 void loop() {
@@ -48,21 +102,26 @@ void loop() {
       if(millis() - tick2_start > 1000) {
         Serial.printf("A|%d&", minihexa.board.bat_voltage);
         tick2_start = millis();
-      }       
+      }
+      if(message.mode == MINIHEXA_AVOID && millis() - tick1_start > 200) {
+        dis = minihexa.sensor.get_distance();
+        tick1_start = millis();
+      }
       if(wifi_server.begin() == true) {
-        if(wifi_server.udp_server() == true) {
-          if(wifi_server.tcp_server() == true) {
-            ble_server.state = SWITCH_WIFI;
-          }
+        wifi_server.udp_server();
+        wifi_server.tcp_server();
+        if(wifi_server.is_cortex_active() == true) {
+          ble_server.state = SWITCH_WIFI;
         }
       }
       break;
 
     case SWITCH_WIFI:
-      if(wifi_server.tcp_server() == false) {
+      if(wifi_server.is_cortex_active() == false) {
         ble_server.state = SWITCH_UART;
       }
       else {
+        wifi_server.tcp_server();
         message = wifi_server.rec;
         if(millis() - tick2_start > 1000) {
           wifi_server.tcpClient.printf("A|%d&", minihexa.board.bat_voltage);
@@ -80,6 +139,27 @@ void loop() {
         tick1_start = millis();
       }    
       break;
+  }
+
+  if(ble_server.state == SWITCH_UART) {
+    if(uart.pose_stream_pending) {
+      apply_pose_message(uart.pose_stream);
+      uart.pose_stream_pending = false;
+    }
+    if(uart.rgb_stream_pending) {
+      apply_rgb_message(uart.rgb_stream);
+      uart.rgb_stream_pending = false;
+    }
+  }
+  else if(ble_server.state == SWITCH_WIFI) {
+    if(wifi_server.pose_stream_pending) {
+      apply_pose_message(wifi_server.pose_stream);
+      wifi_server.pose_stream_pending = false;
+    }
+    if(wifi_server.rgb_stream_pending) {
+      apply_rgb_message(wifi_server.rgb_stream);
+      wifi_server.rgb_stream_pending = false;
+    }
   }
 
   switch(message.mode) {
@@ -118,34 +198,28 @@ void loop() {
     default:
       break;
     }
+    minihexa.gait_mode = message.data[3] ? Robot::GAIT_RIPPLE : Robot::GAIT_TRIPOD;
+    if(message.data[4] <= 100) {
+      minihexa.gait_smooth = message.data[4];
+    }
     minihexa.move(&vel, &pos, &att);
     break;
 
   case MINIHEXA_POSE_CONTROL:
-    pos.z = fmap((float)(int8_t)message.data[5], 0.0f, 30.0f, 0.0f, 3.0f);
-    pos.x = fmap((float)(int8_t)message.data[3], -50.0f, 50.0f, -3.0f, 3.0f);
-    pos.y = fmap((float)(int8_t)message.data[4], -50.0f, 50.0f, -3.0f, 3.0f);
-
-    att.roll = fmap((float)(int8_t)message.data[2], -50.0f, 50.0f, -20.0f, 20.0f);
-    att.pitch = fmap((float)(int8_t)message.data[1], -50.0f, 50.0f, -20.0f, 20.0f);
-    att.yaw = fmap(-(float)(int8_t)message.data[0], -50.0f, 50.0f, -60.0f, 60.0f);
-
-    if(vel.vx == 0.0f && vel.vy == 0.0f && vel.omega == 0.0f) {
-      minihexa.move(&vel, &pos, &att, 200);
-    }
-    else {
-      minihexa.move(&vel, &pos, &att);
-    }
+    apply_pose_message(message);
     break;
 
   case MINIHEXA_OFFSET_READ:
     minihexa.read_deviation(read_val);
-    Serial.printf("G|3|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d&", read_val[0],read_val[1],read_val[2],
-                                                                                read_val[3],read_val[4],read_val[5],
-                                                                                read_val[6],read_val[7],read_val[8],
-                                                                                read_val[9],read_val[10],read_val[11],
-                                                                                read_val[12],read_val[13],read_val[14],
-                                                                                read_val[15],read_val[16],read_val[17]);
+    {
+      char buf[256];
+      snprintf(buf, sizeof(buf),
+               "G|3|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d&",
+               read_val[0], read_val[1], read_val[2], read_val[3], read_val[4], read_val[5],
+               read_val[6], read_val[7], read_val[8], read_val[9], read_val[10], read_val[11],
+               read_val[12], read_val[13], read_val[14], read_val[15], read_val[16], read_val[17]);
+      reply_print(buf);
+    }
     break;
 
   case MINIHEXA_OFFSET_SAVE:
@@ -153,10 +227,10 @@ void loop() {
       ledcWriteTone(LEDC_CHANNEL_0, 3000);
       delay(100);
       ledcWriteTone(LEDC_CHANNEL_0, 0);
-      Serial.printf("G|2|1&");
+      reply_print("G|2|1&");
     }
     else {
-      Serial.printf("G|2|0&");
+      reply_print("G|2|0&");
     }
     break;
  
@@ -196,7 +270,7 @@ void loop() {
 
   case MINIHEXA_ACTION_GROUP_DOWNLOAD:
     minihexa.action_group_download(message.data[0], message.data, sizeof(message.data));
-    Serial.print("K|3&");
+    reply_print("K|3&");
     if(message.data[1] == message.data[2]) {
       ledcWriteTone(LEDC_CHANNEL_0, 3000);
       delay(100);
@@ -209,7 +283,7 @@ void loop() {
     ledcWriteTone(LEDC_CHANNEL_0, 3000);
     delay(100);
     ledcWriteTone(LEDC_CHANNEL_0, 0);
-    Serial.print("K&");
+    reply_print("K&");
     break;
 
   case MINIHEXA_ACTION_GROUP_ALL_ERASE:
@@ -223,7 +297,7 @@ void loop() {
           ledcWriteTone(LEDC_CHANNEL_0, 3000);
           delay(100);
           ledcWriteTone(LEDC_CHANNEL_0, 0);
-          Serial.print("K&");
+          reply_print("K&");
        }
     }
     break;
@@ -312,25 +386,31 @@ void loop() {
     break; 
 
   case MINIHEXA_SERVO_DUTY_READ:
-    Serial.printf("M|1|%d|2|%d|3|%d|4|%d|5|%d|6|%d|7|%d|8|%d|9|%d|10|%d|11|%d|12|%d|13|%d|14|%d|15|%d|16|%d|17|%d|18|%d&", 
-                  minihexa.leg1.joint_a.duty, minihexa.leg1.joint_b.duty, minihexa.leg1.joint_c.duty,
-                  minihexa.leg2.joint_a.duty, minihexa.leg2.joint_b.duty, minihexa.leg2.joint_c.duty,
-                  minihexa.leg3.joint_a.duty, minihexa.leg3.joint_b.duty, minihexa.leg3.joint_c.duty,
-                  minihexa.leg4.joint_a.duty, minihexa.leg4.joint_b.duty, minihexa.leg4.joint_c.duty,
-                  minihexa.leg5.joint_a.duty, minihexa.leg5.joint_b.duty, minihexa.leg5.joint_c.duty,
-                  minihexa.leg6.joint_a.duty, minihexa.leg6.joint_b.duty, minihexa.leg6.joint_c.duty);               
+    {
+      char buf[384];
+      snprintf(buf, sizeof(buf),
+               "M|1|%d|2|%d|3|%d|4|%d|5|%d|6|%d|7|%d|8|%d|9|%d|10|%d|11|%d|12|%d|13|%d|14|%d|15|%d|16|%d|17|%d|18|%d&",
+               minihexa.leg1.joint_a.duty, minihexa.leg1.joint_b.duty, minihexa.leg1.joint_c.duty,
+               minihexa.leg2.joint_a.duty, minihexa.leg2.joint_b.duty, minihexa.leg2.joint_c.duty,
+               minihexa.leg3.joint_a.duty, minihexa.leg3.joint_b.duty, minihexa.leg3.joint_c.duty,
+               minihexa.leg4.joint_a.duty, minihexa.leg4.joint_b.duty, minihexa.leg4.joint_c.duty,
+               minihexa.leg5.joint_a.duty, minihexa.leg5.joint_b.duty, minihexa.leg5.joint_c.duty,
+               minihexa.leg6.joint_a.duty, minihexa.leg6.joint_b.duty, minihexa.leg6.joint_c.duty);
+      reply_print(buf);
+    }
+    break;
+
+  case MINIHEXA_DISTANCE_READ:
+    {
+      char buf[24];
+      dis = minihexa.sensor.get_distance();
+      snprintf(buf, sizeof(buf), "N|%u&", (unsigned)dis);
+      reply_print(buf);
+    }
     break;
 
   case MINIHEXA_RGB_ADJUST:
-    set_rgb[0] = message.data[0];
-    set_rgb[1] = message.data[1];
-    set_rgb[2] = message.data[2];
-
-    rgb[0] = set_rgb[0];
-    rgb[1] = set_rgb[1];
-    rgb[2] = set_rgb[2];
-
-    minihexa.sensor.set_ultrasound_rgb(RGB_WORK_SOLID_MODE, rgb, rgb);
+    apply_rgb_message(message);
     break;
 
   case MINIHEXA_AVOID:
@@ -386,7 +466,9 @@ void loop() {
   if(message.mode != 0) {
     switch(ble_server.state) {
     case SWITCH_UART:
-      memset(&uart.rec, 0, sizeof(uart.rec));
+      if(message.mode != MINIHEXA_AVOID && message.mode != MINIHEXA_BALANCE) {
+        memset(&uart.rec, 0, sizeof(uart.rec));
+      }
       break;
 
     case SWITCH_WIFI:

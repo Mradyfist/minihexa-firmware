@@ -36,7 +36,7 @@ void HW_Board::begin() {
   pinMode(button_pin, INPUT);  
   pinMode(32, OUTPUT);  
 
-  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_BIT); // 5kHz 频率, 8位分辨率
+  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_BIT); // 5kHz frequency, 8-bit resolution
   ledcAttachPin(BUZZER_PIN, LEDC_CHANNEL_0);
 
   buzzer_timer = xTimerCreate("buzzer_timer", 
@@ -85,13 +85,11 @@ void HW_Board::begin() {
 
   qmi.configAccelerometer(SensorQMI8658::ACC_RANGE_2G, 
                           SensorQMI8658::ACC_ODR_1000Hz, 
-                          SensorQMI8658::LPF_MODE_0,
-                          true);
+                          SensorQMI8658::LPF_MODE_0);
 
   qmi.configGyroscope(SensorQMI8658::GYR_RANGE_512DPS,
                       SensorQMI8658::GYR_ODR_448_4Hz,
-                      SensorQMI8658::LPF_MODE_1,
-                      true);
+                      SensorQMI8658::LPF_MODE_1);
   /* In 6DOF mode (accelerometer and gyroscope are both enabled),
   *
   *the output data rate is derived from the nature frequency of gyroscope
@@ -215,16 +213,16 @@ void HW_Board::bat_voltage_update() {
     raw = adc1_get_raw(ADC_PIN);
     samples_voltage = esp_adc_cal_raw_to_voltage(raw, adc_chars);
     samples_voltage = ((R21 + R22) / R22) * samples_voltage;
-    // 插入到滑动窗口
+    // insert into the sliding window
     voltage_buffer[voltage_index] = samples_voltage;
     voltage_index = (voltage_index + 1) % WINDOW_SIZE;
 
-    // 计算滑动平均
+    // compute the moving average
     for (int i = 0; i < WINDOW_SIZE; i++) {
         sum += voltage_buffer[i];
     }
 
-    bat = sum / WINDOW_SIZE;  // 平均电压
+    bat = sum / WINDOW_SIZE;  // average voltage
 
     if(voltage_buffer[WINDOW_SIZE - 1] != 0) {
       bat_voltage = bat;

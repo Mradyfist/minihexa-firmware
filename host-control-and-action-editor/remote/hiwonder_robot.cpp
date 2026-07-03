@@ -2,7 +2,7 @@
 #include "Preferences.h"
 
 static HW_Servo servo;
-static Preferences preferences;      /* NVS非易失储存 */
+static Preferences preferences;      /* NVS non-volatile storage */
 
 RobotJoint::RobotJoint() {}
 
@@ -74,7 +74,7 @@ int8_t RobotJoint::read_deviation() {
   String nvs_name = "knot" + String(id);
   if (!preferences.begin(nvs_name.c_str(), true)) {
     ESP_LOGI("Robot", "Failed to initialize NVS\n");
-    preferences.begin(nvs_name.c_str(), false); // 以写模式打开
+    preferences.begin(nvs_name.c_str(), false); // open in write mode
     preferences.putInt("value", 0);
     preferences.end();
     ESP_LOGI("Robot", "download deviation value: 0\n");
@@ -100,6 +100,115 @@ bool RobotJoint::download_deviation() {
 
 RobotLeg::RobotLeg() {}
 
+static int pose_stance_hip_sign(uint8_t leg_id) {
+  /* Widen support base: right-side hips +, left-side mirrored. */
+  return (leg_id <= 3) ? 1 : -1;
+}
+
+static void apply_pose_leg_lift(
+  RobotLeg &leg, uint8_t leg_id, uint8_t mask, float lift_z) {
+  if(mask & (1u << (leg_id - 1u))) {
+    /* Foot curl is applied after IK; skip Z shift to avoid fighting pose_control. */
+    leg.pose_lift_curl = lift_z;
+  }
+  else {
+    leg.pose_lift_curl = 0.0f;
+  }
+}
+
+static void apply_pose_stance(RobotLeg &leg, uint8_t leg_id, uint8_t mask, float spread_blend) {
+  if(mask & (1u << (leg_id - 1u)) && spread_blend > 0.0f) {
+    leg.pose_stance_hip = spread_blend;
+  }
+  else {
+    leg.pose_stance_hip = 0.0f;
+  }
+}
+
+static uint32_t gait_min_move_time(uint8_t gait_smooth) {
+  return 400u + (uint32_t)gait_smooth * 8u;
+}
+
+static uint32_t gait_leg_servo_blend_ms(uint8_t gait_smooth) {
+  return (uint32_t)fmap((float)gait_smooth, 0.0f, 100.0f, 0.0f, 40.0f);
+}
+
+static void apply_gait_smooth_params(Robot *robot, float *step_length, uint32_t *move_time) {
+  float smooth = robot->gait_smooth / 100.0f;
+
+  *step_length *= 1.0f - 0.3f * smooth;
+  *move_time = (uint32_t)((float)(*move_time) * (1.0f + 2.0f * smooth));
+
+  uint32_t min_time = gait_min_move_time(robot->gait_smooth);
+  if(*move_time < min_time) {
+    *move_time = min_time;
+  }
+  if((*move_time / 4) % SAMPLE_INTERVAL != 0) {
+    *move_time = ((*move_time / 4) / SAMPLE_INTERVAL) * 4 * SAMPLE_INTERVAL;
+  }
+}
+
+static void clear_pose_leg_adjustments(Robot *robot) {
+  robot->leg1.pose_lift_curl = 0.0f;
+  robot->leg2.pose_lift_curl = 0.0f;
+  robot->leg3.pose_lift_curl = 0.0f;
+  robot->leg4.pose_lift_curl = 0.0f;
+  robot->leg5.pose_lift_curl = 0.0f;
+  robot->leg6.pose_lift_curl = 0.0f;
+  robot->leg1.pose_stance_hip = 0.0f;
+  robot->leg2.pose_stance_hip = 0.0f;
+  robot->leg3.pose_stance_hip = 0.0f;
+  robot->leg4.pose_stance_hip = 0.0f;
+  robot->leg5.pose_stance_hip = 0.0f;
+  robot->leg6.pose_stance_hip = 0.0f;
+}
+
+static void apply_all_pose_leg_lifts(Robot *robot) {
+  uint8_t mask = robot->pose_leg_lift_mask;
+  float lift_z = robot->pose_leg_lift_z;
+  uint8_t stance_mask = robot->pose_stance_mask;
+  float stance_spread = robot->pose_stance_spread;
+
+  if((mask == 0 || lift_z <= 0.0f) && (stance_mask == 0 || stance_spread <= 0.0f)) {
+    clear_pose_leg_adjustments(robot);
+    return;
+  }
+
+  if(mask == 0 || lift_z <= 0.0f) {
+    robot->leg1.pose_lift_curl = 0.0f;
+    robot->leg2.pose_lift_curl = 0.0f;
+    robot->leg3.pose_lift_curl = 0.0f;
+    robot->leg4.pose_lift_curl = 0.0f;
+    robot->leg5.pose_lift_curl = 0.0f;
+    robot->leg6.pose_lift_curl = 0.0f;
+  }
+  else {
+    apply_pose_leg_lift(robot->leg1, 1, mask, lift_z);
+    apply_pose_leg_lift(robot->leg2, 2, mask, lift_z);
+    apply_pose_leg_lift(robot->leg3, 3, mask, lift_z);
+    apply_pose_leg_lift(robot->leg4, 4, mask, lift_z);
+    apply_pose_leg_lift(robot->leg5, 5, mask, lift_z);
+    apply_pose_leg_lift(robot->leg6, 6, mask, lift_z);
+  }
+
+  if(stance_mask == 0 || stance_spread <= 0.0f) {
+    robot->leg1.pose_stance_hip = 0.0f;
+    robot->leg2.pose_stance_hip = 0.0f;
+    robot->leg3.pose_stance_hip = 0.0f;
+    robot->leg4.pose_stance_hip = 0.0f;
+    robot->leg5.pose_stance_hip = 0.0f;
+    robot->leg6.pose_stance_hip = 0.0f;
+  }
+  else {
+    apply_pose_stance(robot->leg1, 1, stance_mask, stance_spread);
+    apply_pose_stance(robot->leg2, 2, stance_mask, stance_spread);
+    apply_pose_stance(robot->leg3, 3, stance_mask, stance_spread);
+    apply_pose_stance(robot->leg4, 4, stance_mask, stance_spread);
+    apply_pose_stance(robot->leg5, 5, stance_mask, stance_spread);
+    apply_pose_stance(robot->leg6, 6, stance_mask, stance_spread);
+  }
+}
+
 bool RobotLeg::move(Vector_t point, uint32_t time) {
   bool dir;
   float map_time;
@@ -116,7 +225,7 @@ bool RobotLeg::move(Vector_t point, uint32_t time) {
   }
   else {
     is_busy = true;
-    /* 运动过程中强行写入目标值 */
+    /* force-write the target value during motion */
     if(fabs(goal_point.x - point.x) > 0.0001f ||
        fabs(goal_point.y - point.y) > 0.0001f ||
        fabs(goal_point.z - point.z) > 0.0001f) {
@@ -155,6 +264,37 @@ bool RobotLeg::move(Vector_t point, uint32_t time) {
     this->joint_c.set_angle(dir, 230.0f + _result.c, 0, false);
 
     this->joint_b.duty = this->joint_b.duty > 2143 ? 2143 : (this->joint_b.duty < 857 ? 857 : this->joint_b.duty);
+
+    if(this->pose_lift_curl > 0.0f) {
+      /* Mirror diagnostics leg lift: curl femur + foot so toe points up, not just Z shift. */
+      static const float kMaxPoseLiftCm = 5.5f;
+      static const int kFemurDelta = 220;
+      static const int kFootDelta = 300;
+      float blend = this->pose_lift_curl / kMaxPoseLiftCm;
+      if(blend > 1.0f) {
+        blend = 1.0f;
+      }
+      int femur_off, foot_off;
+      if(this->id <= 3) {
+        femur_off = -(int)(kFemurDelta * blend);
+        foot_off = (int)(kFootDelta * blend);
+      }
+      else {
+        femur_off = (int)(kFemurDelta * blend);
+        foot_off = -(int)(kFootDelta * blend);
+      }
+      this->joint_b.duty += femur_off;
+      this->joint_c.duty += foot_off;
+      this->joint_b.duty = this->joint_b.duty > 2143 ? 2143 : (this->joint_b.duty < 857 ? 857 : this->joint_b.duty);
+      this->joint_c.duty = this->joint_c.duty > 2500 ? 2500 : (this->joint_c.duty < 500 ? 500 : this->joint_c.duty);
+    }
+
+    if(this->pose_stance_hip > 0.0f) {
+      static const int kMaxHipSpread = 200;
+      int hip_off = (int)(kMaxHipSpread * this->pose_stance_hip) * pose_stance_hip_sign(this->id);
+      this->joint_a.duty += hip_off;
+      this->joint_a.duty = this->joint_a.duty > 2500 ? 2500 : (this->joint_a.duty < 500 ? 500 : this->joint_a.duty);
+    }
 
     ServoArg_t servos[3] = {{this->joint_a.id, (uint16_t)((int)this->joint_a.duty + this->joint_a.deviation)},
                             {this->joint_b.id, (uint16_t)((int)this->joint_b.duty + this->joint_b.deviation)},
@@ -279,55 +419,83 @@ void Robot::update() {
       }
 
       switch(move_state) {
-        case MOVING:
-          leg1.set_time = 0;
-          leg2.set_time = 0;
-          leg3.set_time = 0;
-          leg4.set_time = 0;
-          leg5.set_time = 0;
-          leg6.set_time = 0;
+        case MOVING: {
+          uint32_t leg_blend = gait_leg_servo_blend_ms(gait_smooth);
+          leg1.set_time = leg_blend;
+          leg2.set_time = leg_blend;
+          leg3.set_time = leg_blend;
+          leg4.set_time = leg_blend;
+          leg5.set_time = leg_blend;
+          leg6.set_time = leg_blend;
 
-          // tick_count = tick_count >= move_time ? 0 : tick_count;
+          if(gait_mode == GAIT_RIPPLE) {
+            float t = tick_count / (float)move_time;
+            uint32_t seg = move_time / 6;
+            if(seg < SAMPLE_INTERVAL) {
+              seg = SAMPLE_INTERVAL;
+            }
+            uint8_t swing_leg = (tick_count / seg) % 6 + 1;
+            uint32_t local = tick_count % seg;
+            float lift_sharp = _leg_lift * cosf(PI * local / (float)seg);
+            float lift_smooth = _leg_lift * 0.5f * (1.0f - cosf(PI * local / (float)seg));
+            float lift_blend = gait_smooth / 100.0f;
+            float lift = lift_sharp * (1.0f - lift_blend) + lift_smooth * lift_blend;
 
-          leg1.trajectory_point.x  = leg1.result.x + leg1.amplitude.x * sinf(2 * PI * tick_count / move_time);
-          leg3.trajectory_point.x  = leg3.result.x + leg3.amplitude.x * sinf(2 * PI * tick_count / move_time);
-          leg5.trajectory_point.x  = leg5.result.x + leg5.amplitude.x * sinf(2 * PI * tick_count / move_time);
+            auto ripple_xy = [&](RobotLeg &leg, uint8_t id) {
+              float phase = t + (id - 1) / 6.0f;
+              float s = sinf(2 * PI * phase);
+              leg.trajectory_point.x = leg.result.x + leg.amplitude.x * s;
+              leg.trajectory_point.y = leg.result.y + leg.amplitude.y * s;
+              leg.trajectory_point.z = (id == swing_leg) ? leg.result.z + lift : leg.result.z;
+            };
 
-          leg2.trajectory_point.x  = leg2.result.x - leg2.amplitude.x * sinf(2 * PI * tick_count / move_time);
-          leg4.trajectory_point.x  = leg4.result.x - leg4.amplitude.x * sinf(2 * PI * tick_count / move_time);
-          leg6.trajectory_point.x  = leg6.result.x - leg6.amplitude.x * sinf(2 * PI * tick_count / move_time);
-
-          leg1.trajectory_point.y  = leg1.result.y + leg1.amplitude.y * sinf(2 * PI * tick_count / move_time);
-          leg3.trajectory_point.y  = leg3.result.y + leg3.amplitude.y * sinf(2 * PI * tick_count / move_time);
-          leg5.trajectory_point.y  = leg5.result.y + leg5.amplitude.y * sinf(2 * PI * tick_count / move_time);
-
-          leg2.trajectory_point.y  = leg2.result.y - leg2.amplitude.y * sinf(2 * PI * tick_count / move_time);
-          leg4.trajectory_point.y  = leg4.result.y - leg4.amplitude.y * sinf(2 * PI * tick_count / move_time);
-          leg6.trajectory_point.y  = leg6.result.y - leg6.amplitude.y * sinf(2 * PI * tick_count / move_time);
-
-          if(tick_count > (move_time / 4) && tick_count < (3 * move_time / 4)) {
-            leg1.trajectory_point.z = leg1.result.z;
-            leg3.trajectory_point.z = leg3.result.z;
-            leg5.trajectory_point.z = leg5.result.z;    
-
-            leg2.trajectory_point.z = leg2.result.z - _leg_lift * cosf((2 * PI  * tick_count / move_time));
-            leg4.trajectory_point.z = leg4.result.z - _leg_lift * cosf((2 * PI  * tick_count / move_time));
-            leg6.trajectory_point.z = leg6.result.z - _leg_lift * cosf((2 * PI  * tick_count / move_time));      
+            ripple_xy(leg1, 1);
+            ripple_xy(leg2, 2);
+            ripple_xy(leg3, 3);
+            ripple_xy(leg4, 4);
+            ripple_xy(leg5, 5);
+            ripple_xy(leg6, 6);
           }
-          // else if((tick_count >= 0 && tick_count <= (move_time / 4)) || (tick_count >= 3 * move_time / 4 && tick_count < move_time)){
           else {
-            leg1.trajectory_point.z = leg1.result.z + _leg_lift * cosf((2 * PI  * tick_count / move_time));
-            leg3.trajectory_point.z = leg3.result.z + _leg_lift * cosf((2 * PI  * tick_count / move_time));
-            leg5.trajectory_point.z = leg5.result.z + _leg_lift * cosf((2 * PI  * tick_count / move_time));
+            float phase = 2 * PI * tick_count / (float)move_time;
+            float cos_p = cosf(phase);
+            float lift_blend = gait_smooth / 100.0f;
+            bool mid_half = tick_count > (move_time / 4) && tick_count < (3 * move_time / 4);
 
-            leg2.trajectory_point.z = leg2.result.z;
-            leg4.trajectory_point.z = leg4.result.z;
+            float lift_135_sharp = mid_half ? 0.0f : _leg_lift * cos_p;
+            float lift_246_sharp = mid_half ? -_leg_lift * cos_p : 0.0f;
+            float lift_135_smooth = _leg_lift * fmaxf(0.0f, cos_p);
+            float lift_246_smooth = _leg_lift * fmaxf(0.0f, -cos_p);
+            float lift_135 = lift_135_sharp * (1.0f - lift_blend) + lift_135_smooth * lift_blend;
+            float lift_246 = lift_246_sharp * (1.0f - lift_blend) + lift_246_smooth * lift_blend;
 
-            leg6.trajectory_point.z = leg6.result.z;
+            leg1.trajectory_point.x  = leg1.result.x + leg1.amplitude.x * sinf(phase);
+            leg3.trajectory_point.x  = leg3.result.x + leg3.amplitude.x * sinf(phase);
+            leg5.trajectory_point.x  = leg5.result.x + leg5.amplitude.x * sinf(phase);
+
+            leg2.trajectory_point.x  = leg2.result.x - leg2.amplitude.x * sinf(phase);
+            leg4.trajectory_point.x  = leg4.result.x - leg4.amplitude.x * sinf(phase);
+            leg6.trajectory_point.x  = leg6.result.x - leg6.amplitude.x * sinf(phase);
+
+            leg1.trajectory_point.y  = leg1.result.y + leg1.amplitude.y * sinf(phase);
+            leg3.trajectory_point.y  = leg3.result.y + leg3.amplitude.y * sinf(phase);
+            leg5.trajectory_point.y  = leg5.result.y + leg5.amplitude.y * sinf(phase);
+
+            leg2.trajectory_point.y  = leg2.result.y - leg2.amplitude.y * sinf(phase);
+            leg4.trajectory_point.y  = leg4.result.y - leg4.amplitude.y * sinf(phase);
+            leg6.trajectory_point.y  = leg6.result.y - leg6.amplitude.y * sinf(phase);
+
+            leg1.trajectory_point.z = leg1.result.z + lift_135;
+            leg3.trajectory_point.z = leg3.result.z + lift_135;
+            leg5.trajectory_point.z = leg5.result.z + lift_135;
+
+            leg2.trajectory_point.z = leg2.result.z + lift_246;
+            leg4.trajectory_point.z = leg4.result.z + lift_246;
+            leg6.trajectory_point.z = leg6.result.z + lift_246;
           }
-          // tick_count += SAMPLE_INTERVAL;
           tick_count = tick_count >= move_time ? 0 : tick_count + SAMPLE_INTERVAL;
           break;
+        }
 
         case STOP:
           tick_count = 0;
@@ -344,6 +512,7 @@ void Robot::update() {
           leg4.trajectory_point = leg4.result;
           leg5.trajectory_point = leg5.result;
           leg6.trajectory_point = leg6.result;
+          apply_all_pose_leg_lifts(this);
 
           if(fabs(leg1.trajectory_point.z - leg1.now_point.z) < 0.0001f) {
             move_state = REST;
@@ -363,6 +532,7 @@ void Robot::update() {
           leg4.trajectory_point = leg4.result;
           leg5.trajectory_point = leg5.result;
           leg6.trajectory_point = leg6.result;
+          apply_all_pose_leg_lifts(this);
           break;
 
         default:
@@ -488,7 +658,7 @@ void Robot::cal_omni_move_end_point() {
   abs_vel = (1 / invsqrt(pow(vx, 2) + pow(vy, 2)));
   m_radius =  abs_vel / fabs(velocity.omega);
 
-  /* 圆心相对于机体坐标系的方向向量 */
+  /* direction vector of the circle center relative to the body coordinate frame */
   vel_90.vx = -vy;
   vel_90.vy = vx;
 
@@ -506,12 +676,14 @@ void Robot::cal_omni_move_end_point() {
 
   if(step_length > max_half_step_length) {
     move_time = move_time / (step_length / max_half_step_length);
-    move_time = move_time < 400 ? 400 : move_time;
+    move_time = move_time < gait_min_move_time(gait_smooth) ? gait_min_move_time(gait_smooth) : move_time;
     step_length = max_half_step_length;
     if((move_time / 4) % SAMPLE_INTERVAL != 0) {
       move_time = ((move_time / 4) / SAMPLE_INTERVAL) * 4 * SAMPLE_INTERVAL;
     }
   }
+
+  apply_gait_smooth_params(this, &step_length, &move_time);
 
   if(fabs(euler.pitch - 0.0f) < 0.001f && 
      fabs(euler.roll - 0.0f) < 0.001f &&
@@ -615,13 +787,16 @@ void Robot::move(Velocity_t *_velocity, Vector_t *_position, Euler_t *_euler, ui
     }
     else {
       move_state = REST;
-      move_time = time > SAMPLE_INTERVAL? time : SAMPLE_INTERVAL;
+      move_time = (time == 0) ? 0 : (time > SAMPLE_INTERVAL ? time : SAMPLE_INTERVAL);
     }
   }
   else {
     euler.roll = 0.0f;
     euler.yaw = 0.0f;
-    move_time = time > 400? time : 400;
+    {
+      uint32_t min_time = gait_min_move_time(gait_smooth);
+      move_time = time > min_time ? time : min_time;
+    }
     move_state = MOVING;
     cal_omni_move_end_point();  
     leg1.amplitude = vector_arg_ops(&leg1.omni_move_end_point, &leg1.start_result, SUB);
@@ -635,9 +810,27 @@ void Robot::move(Velocity_t *_velocity, Vector_t *_position, Euler_t *_euler, ui
 }
 
 void Robot::reset(void) {
+  pose_leg_lift_mask = 0;
+  pose_leg_lift_sign_flip = 0;
+  pose_leg_lift_z = 0.0f;
+  pose_stance_mask = 0;
+  pose_stance_spread = 0.0f;
+  leg1.pose_lift_curl = 0.0f;
+  leg2.pose_lift_curl = 0.0f;
+  leg3.pose_lift_curl = 0.0f;
+  leg4.pose_lift_curl = 0.0f;
+  leg5.pose_lift_curl = 0.0f;
+  leg6.pose_lift_curl = 0.0f;
+  leg1.pose_stance_hip = 0.0f;
+  leg2.pose_stance_hip = 0.0f;
+  leg3.pose_stance_hip = 0.0f;
+  leg4.pose_stance_hip = 0.0f;
+  leg5.pose_stance_hip = 0.0f;
+  leg6.pose_stance_hip = 0.0f;
+
   Velocity_t vel = {0.0f, 0.0f, 0.0f};
   Vector_t pos = {0.0f, 0.0f, 1.0f};
-  Euler_t att = {0.0f, 0.0f, 0.0f};  
+  Euler_t att = {0.0f, 0.0f, 0.0f};
   move(&vel, &pos, &att, 600);
   delay(600);
 }
@@ -720,14 +913,14 @@ void Robot::balance(bool state) {
 bool Robot::next_circular_point(CircularPath* path, float* x, float* y) {
     const uint16_t total_steps = path->steps_per_circle * path->total_circles;
     
-    /* 已完成所有步骤（包括回到原点）*/
+    /* all steps completed (including returning to the origin)*/
     if (path->is_completed) {
         *x = 0.0f;
         *y = 0.0f;
         return true;
     }
     
-    /* 已完成圆周运动，但还未返回原点 */
+    /* circular motion completed, but not yet returned to the origin */
     if (path->current_step == total_steps) {
         *x = 0.0f;
         *y = 0.0f;
@@ -735,7 +928,7 @@ bool Robot::next_circular_point(CircularPath* path, float* x, float* y) {
         return true;
     }
     
-    /* 正常圆周运动 */
+    /* normal circular motion */
     float angle = 2.0f * PI * ((float)path->current_step / path->steps_per_circle) * path->direction;
     *x = path->r * cosf(angle);
     *y = path->r * sinf(angle);
@@ -907,7 +1100,7 @@ void Robot::action_group_run(uint8_t id) {
 
   while(file.available()) {
     switch(act_state) {
-      case READ_FRAME_NUM: /*读取帧头*/
+      case READ_FRAME_NUM: /*read the frame header*/
         act_read_frame_num = (uint8_t)file.read();
         act_state = READ_FRAME_DATA;
         break;

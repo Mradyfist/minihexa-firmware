@@ -44,12 +44,12 @@ typedef enum {
 }RotationDirection;
 
 typedef struct {
-  float r;                      /* 圆半径 */
-  uint16_t steps_per_circle;    /* 每圈步数 */
-  uint16_t total_circles;       /* 总圈数 */
-  uint16_t current_step;        /* 当前步数（从0开始）*/
-  bool is_completed;            /* 是否已完成全部路径 */
-  RotationDirection direction;  /* 旋转方向 */
+  float r;                      /* circle radius */
+  uint16_t steps_per_circle;    /* steps per circle */
+  uint16_t total_circles;       /* total number of circles */
+  uint16_t current_step;        /* current step (starting from 0)*/
+  bool is_completed;            /* whether the entire path has been completed */
+  RotationDirection direction;  /* rotation direction */
 }CircularPath;
 
 #ifdef __cplusplus
@@ -62,7 +62,7 @@ class RobotJoint {
   public: 
     RobotJoint();
 
-    bool dir;                 /* dir = true 正转 dir = false 反转 */
+    bool dir;                 /* dir = true forward rotation, dir = false reverse rotation */
     int8_t deviation;
     uint8_t id;
     uint16_t duty;
@@ -70,56 +70,56 @@ class RobotJoint {
     float angle;
 
     /**
-     * @brief 绑定舵机ID号
+     * @brief Bind servo ID number
      * 
-     * @param  id -分配的舵机序号
+     * @param  id -assigned servo index
      */
     void attach_servo(uint8_t id);
     
     /**
-     * @brief 通过设置角度实现舵机控制
+     * @brief Control the servo by setting an angle
      * 
-     * @param  dir    -true 正转 
-     *                -false 反转
-     * @param  angle  -角度值
-     * @param  time   -运行时间
-     * @param  is_ops -是否直接控制舵机响应 
-     *                -true 舵机响应 
-     *                -false 舵机不响应
-     * @attention  默认绑定的19、20、21号舵机为180度舵机
+     * @param  dir    -true  forward rotation 
+     *                -false reverse rotation
+     * @param  angle  -angle value
+     * @param  time   -run time
+     * @param  is_ops -whether to directly control the servo response 
+     *                -true  servo responds 
+     *                -false servo does not respond
+     * @attention  Servos 19, 20, 21 are bound as 180-degree servos by default
      */
     void set_angle(bool dir, float angle, uint16_t time, bool is_ops);
 
     /**
-     * @brief 通过设置PWM脉宽实现舵机控制
+     * @brief Control the servo by setting the PWM pulse width
      * 
-     * @param  duty   -PWM脉宽
-     * @param  time   -运行时间
-     * @param  is_ops -是否直接控制舵机响应 
-     *                -true 舵机响应 
-     *                -false 舵机不响应
+     * @param  duty   -PWM pulse width
+     * @param  time   -run time
+     * @param  is_ops -whether to directly control the servo response 
+     *                -true  servo responds 
+     *                -false servo does not respond
      */
     void set_duty(uint16_t duty, uint16_t time, bool is_ops);
 
     /**
-     * @brief 偏差设置
+     * @brief Set deviation
      * 
-     * @param val  -偏差值
+     * @param val  -deviation value
      */
     void set_deviation(int8_t val);
 
     /**
-     * @brief 偏差读取
+     * @brief Read deviation
      * 
-     * @return int8_t -偏差
+     * @return int8_t -deviation
      */
     int8_t read_deviation(void);
 
     /**
-     * @brief 偏差下载
+     * @brief Download deviation
      * 
-     * @return true   -下载成功
-     * @return false  -下载失败
+     * @return true   -download succeeded
+     * @return false  -download failed
      */
     bool download_deviation(void);
 };
@@ -136,37 +136,41 @@ class RobotLeg {
     
     Theta_t _result;
     
-    Vector_t offset;                                /* 读取到的舵机偏差值 */
+    Vector_t offset;                                /* servo deviation value that was read */
 
-    Vector_t b_leg_start = {0.0f, 0.0f, 0.0f};                           /* 腿部起始端在机体坐标系下的坐标 */
+    Vector_t b_leg_start = {0.0f, 0.0f, 0.0f};                           /* coordinate of the leg start point in the body coordinate frame */
     Vector_t r_leg_start = {0.0f, 0.0f, 0.0f};
-    Vector_t r_leg_end = {0.0f, 0.0f, 0.0f};                             /* 经过旋转变换的腿部末端坐标 */
-    Vector_t b_leg_end = {0.0f, 0.0f, 0.0f};                             /* 腿部末端在机体坐标系下的坐标 */
-    Vector_t omni_move_end_point = {0.0f, 0.0f, 0.0f};                   /* 全向运动下腿部末端目标落点位置 */  
-    Vector_t trajectory_point = {0.0f, 0.0f, 0.0f};                      /* 轨迹规划目标位置 */ 
-    Vector_t result = {0.0f, 0.0f, 0.0f};                                /* 姿态解算的坐标 */
-    Vector_t start_result = {0.0f, 0.0f, 0.0f};                          /* 初始化姿态解算的坐标 */
-    Vector_t amplitude = {0.0f, 0.0f, 0.0f};                             /* 腿部运动幅度 */
-    Vector_t last_point = {0.0f, 0.0f, 0.0f};                            /* 腿部末端上一次坐标 */    
-    Vector_t now_point = {0.0f, 0.0f, 0.0f};                             /* 腿部末端坐标 */
+    Vector_t r_leg_end = {0.0f, 0.0f, 0.0f};                             /* leg end coordinate after the rotation transform */
+    Vector_t b_leg_end = {0.0f, 0.0f, 0.0f};                             /* coordinate of the leg end in the body coordinate frame */
+    Vector_t omni_move_end_point = {0.0f, 0.0f, 0.0f};                   /* target foot landing position of the leg end during omnidirectional motion */  
+    Vector_t trajectory_point = {0.0f, 0.0f, 0.0f};                      /* trajectory planning target position */ 
+    Vector_t result = {0.0f, 0.0f, 0.0f};                                /* coordinate from the pose solving */
+    Vector_t start_result = {0.0f, 0.0f, 0.0f};                          /* initial coordinate for the pose solving */
+    Vector_t amplitude = {0.0f, 0.0f, 0.0f};                             /* leg motion amplitude */
+    Vector_t last_point = {0.0f, 0.0f, 0.0f};                            /* previous coordinate of the leg end */    
+    Vector_t now_point = {0.0f, 0.0f, 0.0f};                             /* leg end coordinate */
     Vector_t trans_point = {0.0f, 0.0f, 0.0f};
     Vector_t begin_point = {6.5f, 0.0f, -4.0f};
     Vector_t start_point = {6.5f, 0.0f, -4.0f};
     Vector_t goal_point = {6.5f, 0.0f, -4.0f};
+    /** Per-leg pose lift amount (cm); drives femur/foot curl after IK. */
+    float pose_lift_curl = 0.0f;
+    /** Support-leg hip spread blend (0..1) after IK. */
+    float pose_stance_hip = 0.0f;
     /**
-     * @brief 运动腿部到指定坐标点
+     * @brief Move the leg to a specified coordinate point
      * 
-     * @param  point  -目标坐标
-     * @param  time   -运行时间
-     * @return true   -正在运行
-     * @return false  -未在运行
+     * @param  point  -target coordinate
+     * @param  time   -run time
+     * @return true   -running
+     * @return false  -not running
      */
     bool move(Vector_t point, uint32_t time);
 
     /**
-     * @brief 获取当前坐标点
+     * @brief Get the current coordinate point
      * 
-     * @return Vector_t -当前坐标点
+     * @return Vector_t -current coordinate point
      */
     Vector_t get_now_point(void);
   private:
@@ -195,84 +199,93 @@ class Robot {
     enum Move_State {MOVING, STOP, REST};
     enum Avoid_State {FORWARD, BACK, TURN, WAIT};
     enum Act_State {READ_FRAME_NUM, READ_FRAME_DATA, ACT_STOP};
+    enum GaitMode {GAIT_TRIPOD = 0, GAIT_RIPPLE = 1};
     Func_State func_state = CRAWL;
     Move_State move_state = REST;
     Avoid_State avoid_state = FORWARD;
     Act_State act_state = READ_FRAME_NUM;
+    GaitMode gait_mode = GAIT_TRIPOD;
+    /** 0 = fastest / snappiest gait, 100 = slowest / smoothest. */
+    uint8_t gait_smooth = 0;
+    uint8_t pose_leg_lift_mask = 0;
+    uint8_t pose_leg_lift_sign_flip = 0;
+    float pose_leg_lift_z = 0.0f;
+    uint8_t pose_stance_mask = 0;
+    float pose_stance_spread = 0.0f;
 
     uint32_t tick_count = 0;
     /**
-     * @brief 机体初始化
+     * @brief Body initialization
      * 
      */
     void begin(void);
     
     /**
-     * @brief 位置更新  默认每10ms更新一次
+     * @brief Position update; updates every 10ms by default
      * 
      */
     void update(void);
     
     /**
-     * @brief 运动姿态
+     * @brief Motion pose
      * 
      */
     void crawl_state(void);
 
     /**
-     * @brief 机体移动
+     * @brief Body movement
      * 
-     * @param  _velocity    -机体x、y和绕z轴旋转速度 
-     * @param  _position    -相对于机体中心的x、y和z轴位置
-     * @param  _euler       -相对于机体中心的欧拉角
-     * @param  time         -运行时间
-     * @param  step_num     -步数
+     * @param  _velocity    -body x, y and rotation speed about the z axis 
+     * @param  _position    -x, y and z axis position relative to the body center
+     * @param  _euler       -Euler angles relative to the body center
+     * @param  time         -run time
+     * @param  step_num     -number of steps
      */
     void move(Velocity_t *_velocity, Vector_t *_position, Euler_t *_euler, uint32_t time = 600, int step_num = -1);
 
     /**
-     * @brief 机体复位
+     * @brief Body reset
      * 
      */
     void reset(void);
 
     /**
-     * @brief 避障
+     * @brief Obstacle avoidance
      * 
-     * @param  dis  -测得的当前距离
+     * @param  dis  -measured current distance
      */
     void avoid(uint16_t dis);
 
     /**
-     * @brief 自平衡
+     * @brief Self-balancing
      * 
      */
     void balance(bool state);
 
     /**
-     * @brief 扭动动作
+     * @brief Wiggle action
      * 
-     * @param  radius            -半径
-     * @param  circles           -圈数
-     * @param  steps_per_circle  -每圈采样点数
-     * @param  dir               -方向
+     * @param  radius            -radius
+     * @param  circles           -number of circles
+     * @param  steps_per_circle  -number of sample points per circle
+     * @param  dir               -direction
      */
     void twist(float radius, uint16_t circles, uint16_t steps_per_circle, RotationDirection dir);
 
     /**
-     * @brief 撒娇动作
+     * @brief Act-cute action
      * 
      */
     void acting_cute(void);
 
     /**
-     * @brief 唤醒动作
+     * @brief Wake-up action
      * 
      */
     void wake_up();
 
     /**
-     * @brief 唤醒奔跑动作
+     * @brief Wake-up running action
      * 
      */
     void _wake_up();
@@ -281,73 +294,73 @@ class Robot {
     // void coor_action2();
 
     /**
-     * @brief 列出当前存在的动作组文件名称及文件大小(需要打开LOG)
+     * @brief List the names and sizes of the currently existing action group files (LOG must be enabled)
      * 
      */
     void list_action_group_dir(void);  
 
     /**
-     * @brief 动作组复位
+     * @brief Action group reset
      * 
      */
     void action_group_stop(void);    
 
     /**
-     * @brief 动作组运行
+     * @brief Run action group
      * 
-     * @param  id -运行的动作组id号
+     * @param  id -id number of the action group to run
      */
     void action_group_run(uint8_t id);
 
     /**
-     * @brief 动作组下载
+     * @brief Download action group
      * 
-     * @param  id       -动作组id号
-     * @param  buf      -下载的动作组数据
-     * @param  length   -下载的动作组数据长度
-     * @return true     -下载成功
-     * @return false    -下载失败
+     * @param  id       -action group id number
+     * @param  buf      -action group data to download
+     * @param  length   -length of the action group data to download
+     * @return true     -download succeeded
+     * @return false    -download failed
      */
     bool action_group_download(uint8_t id, uint8_t *buf, size_t length);
 
     /**
-     * @brief 动作组擦除
+     * @brief Erase action group
      * 
-     * @param  id       -动作组id号
-     * @return true     -擦除成功
-     * @return false     -擦除失败
+     * @param  id       -action group id number
+     * @return true     -erase succeeded
+     * @return false     -erase failed
      */
     bool action_group_erase(uint8_t id);
 
     /**
-     * @brief 多舵机控制
+     * @brief Multi-servo control
      * 
-     * @param  arg       -舵机参数结构体指针
-     * @param  servo_num -舵机数量
-     * @param  time      -运行时间
+     * @param  arg       -pointer to the servo parameter struct
+     * @param  servo_num -number of servos
+     * @param  time      -run time
      */
     void multi_servo_control(ServoArg_t* arg, uint16_t servo_num, uint16_t time);
 
     /**
-     * @brief 偏差设置
+     * @brief Set deviation
      * 
-     * @param id  -关节id
-     * @param val  -偏差值
+     * @param id  -joint id
+     * @param val  -deviation value
      */
     void set_deviation(uint8_t id, int8_t val);
 
     /**
-     * @brief 偏差读取
+     * @brief Read deviation
      * 
-     * @param *val -读取到的偏差值指针
+     * @param *val -pointer to the read deviation value
      */
     void read_deviation(int8_t *val);
 
     /**
-     * @brief 偏差下载
+     * @brief Download deviation
      * 
-     * @return true   -下载成功
-     * @return false  -下载失败
+     * @return true   -download succeeded
+     * @return false  -download failed
      */
     bool download_deviation(void);        
 
@@ -375,19 +388,19 @@ class Robot {
     TimerHandle_t event;
 
     /**
-     * @brief 移动落点坐标计算
+     * @brief Foot landing coordinate calculation for movement
      * 
      */
     void cal_omni_move_end_point(void);
 
     /**
-     * @brief  圆圈轨迹点计算
+     * @brief  Circle trajectory point calculation
      * 
-     * @param  path   -轨迹点结构体指针
-     * @param  x      -圆心x坐标
-     * @param  y      -圆心y坐标
-     * @return true   -运动完成
-     * @return false  -运动未完成
+     * @param  path   -pointer to the trajectory point struct
+     * @param  x      -x coordinate of the circle center
+     * @param  y      -y coordinate of the circle center
+     * @return true   -motion complete
+     * @return false  -motion not complete
      */
     bool next_circular_point(CircularPath* path, float* x, float* y);
 };

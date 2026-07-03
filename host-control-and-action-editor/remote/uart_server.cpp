@@ -1,122 +1,59 @@
 #include "uart_server.h"
+#include "cortex_config.h"
+#include "command_parser.h"
+#include "wifi_server.h"
 
-String rec_data[62];
-static RecData_t read_data(String data)
-{
-  String data_update;
-  RecData_t rec;
-  uint8_t index = 0;
+extern WiFiServerManager wifi_server;
 
-  data_update = data;
-
-  while (data_update.indexOf('|') != -1)
-  {
-    rec_data[index] = data_update.substring(0, data_update.indexOf('|'));  /* 提取字符串 */
-    data_update = data_update.substring(data_update.indexOf('|') + 1);       /* 更新字符串，去掉已提取的子字符串和分隔符 */
-    index++;      /* 更新索引 */
-  }
-
-  rec_data[index] = data_update;
-  
-  if(rec_data[0] == "B") {
-    rec.mode = MINIHEXA_CRAWL_STATE;
-  }
-  else if(rec_data[0] == "C") {
-    rec.mode = MINIHEXA_MOVING_CONTROL;
-    for(uint8_t i = 0; i < 3; i++) {
-      rec.data[i] = (uint8_t)atoi(rec_data[i + 1].c_str());
-    }
-  }
-  else if(rec_data[0] == "F") {
-    rec.mode = MINIHEXA_POSE_CONTROL;
-    for(uint8_t i = 0; i < 6; i++) {
-      rec.data[i] = (uint8_t)atoi(rec_data[1 + i].c_str());
-    }    
-  }
-  else if(rec_data[0] == "G") {
-    switch(atoi(rec_data[1].c_str()))
-    {
-    case 1:
-      rec.mode = MINIHEXA_LEG_OFFSET_SET;
-      for(uint8_t i = 0; i < 4; i++) {
-        rec.data[i] = (uint8_t)atoi(rec_data[2 + i].c_str());
-        
-      }
-      break;
-
-    case 2:
-      rec.mode = MINIHEXA_OFFSET_SAVE;
-      rec.data[0] = (uint8_t)atoi(rec_data[2].c_str());
-      break;
-
-    case 3:
-      rec.mode = MINIHEXA_OFFSET_READ;
-      rec.data[0] = (uint8_t)atoi(rec_data[2].c_str());
-      break;
-
-    }
-  }  
-  else if(rec_data[0] == "K") {
-    switch(atoi(rec_data[1].c_str()))
-    {
-      case 1:
-        rec.mode = MINIHEXA_ACTION_GROUP_RUN;
-        rec.data[0] = (uint8_t)atoi(rec_data[2].c_str());
-        break;
-
-      case 2:
-        rec.mode = MINIHEXA_ACTION_GROUP_STOP;
-        break;
-
-      case 3:
-        rec.mode = MINIHEXA_ACTION_GROUP_DOWNLOAD;
-        for(uint8_t i = 0; i < 60; i++) {
-          rec.data[i] = (uint8_t)atoi(rec_data[2 + i].c_str());
-        }
-        break;
-
-      case 4:
-        rec.mode = MINIHEXA_ACTION_GROUP_ERASE;
-        rec.data[0] = (uint8_t)atoi(rec_data[2].c_str());
-        break;
-
-      case 5:
-        rec.mode = MINIHEXA_ACTION_GROUP_ALL_ERASE;
-
-        break;
-    }
-  }
-  else if(rec_data[0] == "L") {
-    rec.mode = MINIHEXA_SERVO_CONTROL;
-    for(uint8_t i = 0; i < 57; i++) {
-      rec.data[i] = (uint8_t)atoi(rec_data[1 + i].c_str());
-    }
-  }
-  else if(rec_data[0] == "M") {
-    rec.mode = MINIHEXA_SERVO_DUTY_READ;
-  }
-  else {
-    rec.mode = MINIHEXA_NULL;
-    memset(rec.data, 0, sizeof(rec.data));
-  }
-  return rec;
-}
-
-void UartServerManager::begin()
-{
-  Serial.setRxBufferSize(2048);  // 增大接收缓冲区到2KB
+void UartServerManager::begin() {
+  pose_stream_pending = false;
+  rgb_stream_pending = false;
+  memset(&rec, 0, sizeof(rec));
+  memset(&pose_stream, 0, sizeof(pose_stream));
+  memset(&rgb_stream, 0, sizeof(rgb_stream));
+  Serial.setRxBufferSize(2048);
   Serial.begin(115200);
 }
 
 void UartServerManager::on_receive(void (*callback)(void)) {
-  Serial.onReceive(callback, true); 
+  Serial.onReceive(callback, true);
 }
 
-void UartServerManager::receive_message()
-{
-  while(Serial.available())
-  {
+void UartServerManager::receive_message() {
+  while (Serial.available()) {
     String fullData = Serial.readStringUntil('&');
-    rec = read_data(fullData);
+
+    if (fullData.startsWith("W|")) {
+      if (fullData == "W|3") {
+        Serial.print(wifi_server.station_status_frame().c_str());
+        continue;
+      }
+      bool ok = cortex_config.handle_provision_frame(fullData);
+      if (fullData.indexOf("|1|") == 1) {
+        Serial.printf("W|1|%d&", ok ? 1 : 0);
+        if (ok) {
+          wifi_server.station_reconnect(
+            cortex_config.wifi_ssid(),
+            cortex_config.wifi_password());
+        }
+      }
+      else if (fullData.indexOf("|2|") == 1) {
+        Serial.printf("W|2|%d&", ok ? 1 : 0);
+      }
+      continue;
+    }
+
+    RecData_t parsed = parse_command_frame(fullData);
+    if (parsed.mode == MINIHEXA_POSE_CONTROL) {
+      pose_stream = parsed;
+      pose_stream_pending = true;
+    }
+    else if (parsed.mode == MINIHEXA_RGB_ADJUST) {
+      rgb_stream = parsed;
+      rgb_stream_pending = true;
+    }
+    else {
+      rec = parsed;
+    }
   }
 }

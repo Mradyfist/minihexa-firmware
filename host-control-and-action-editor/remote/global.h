@@ -5,17 +5,17 @@
 
 #include "Arduino.h"
 
-/* 通信引脚 */
+/* communication pins */
 #define RXD2                                  16
 #define TXD2                                  17 
 #define SDA                                   22
 #define SCL                                   23
 
-/* 宏函数 获得A的低八位 */
+/* macro function: get the low 8 bits of A */
 #define GET_LOW_BYTE(A) ((uint8_t)(A))
-/* 宏函数 获得A的高八位 */
+/* macro function: get the high 8 bits of A */
 #define GET_HIGH_BYTE(A) ((uint8_t)((A) >> 8))
-/* 宏函数 将高低八位合成为十六位 */
+/* macro function: combine the high and low 8 bits into 16 bits */
 #define BYTE_TO_HW(A, B) ((((uint16_t)(A)) << 8) | (uint8_t)(B))
 
 #define LIMIT(x, min, max) (((x) >= (max)) ? (max) : (((x) <= (min)) ? (min) : (x)))
@@ -53,6 +53,7 @@ typedef enum
   MINIHEXA_ACTION_GROUP_ALL_ERASE,
   MINIHEXA_SERVO_CONTROL,
   MINIHEXA_SERVO_DUTY_READ,
+  MINIHEXA_DISTANCE_READ,
   MINIHEXA_ARM_CONTROL
 }ModeState;
 
