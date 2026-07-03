@@ -2,7 +2,7 @@
 #include "Preferences.h"
 
 static HW_Servo servo;
-static Preferences preferences;      /* NVS非易失储存 */
+static Preferences preferences;      /* NVS non-volatile storage */
 
 RobotJoint::RobotJoint() {}
 
@@ -74,7 +74,7 @@ int8_t RobotJoint::read_deviation() {
   String nvs_name = "knot" + String(id);
   if (!preferences.begin(nvs_name.c_str(), true)) {
     ESP_LOGI("Robot", "Failed to initialize NVS\n");
-    preferences.begin(nvs_name.c_str(), false); // 以写模式打开
+    preferences.begin(nvs_name.c_str(), false); // open in write mode
     preferences.putInt("value", 0);
     preferences.end();
     ESP_LOGI("Robot", "download deviation value: 0\n");
@@ -116,7 +116,7 @@ bool RobotLeg::move(Vector_t point, uint32_t time) {
   }
   else {
     is_busy = true;
-    /* 运动过程中强行写入目标值 */
+    /* force-write the target value during motion */
     if(fabs(goal_point.x - point.x) > 0.0001f ||
        fabs(goal_point.y - point.y) > 0.0001f ||
        fabs(goal_point.z - point.z) > 0.0001f) {
@@ -488,7 +488,7 @@ void Robot::cal_omni_move_end_point() {
   abs_vel = (1 / invsqrt(pow(vx, 2) + pow(vy, 2)));
   m_radius =  abs_vel / fabs(velocity.omega);
 
-  /* 圆心相对于机体坐标系的方向向量 */
+  /* direction vector of the circle center relative to the body coordinate frame */
   vel_90.vx = -vy;
   vel_90.vy = vx;
 
@@ -779,14 +779,14 @@ void Robot::balance(bool state) {
 bool Robot::next_circular_point(CircularPath* path, float* x, float* y) {
     const uint16_t total_steps = path->steps_per_circle * path->total_circles;
     
-    /* 已完成所有步骤（包括回到原点）*/
+    /* all steps completed (including returning to the origin)*/
     if (path->is_completed) {
         *x = 0.0f;
         *y = 0.0f;
         return true;
     }
     
-    /* 已完成圆周运动，但还未返回原点 */
+    /* circular motion completed, but not yet returned to the origin */
     if (path->current_step == total_steps) {
         *x = 0.0f;
         *y = 0.0f;
@@ -794,7 +794,7 @@ bool Robot::next_circular_point(CircularPath* path, float* x, float* y) {
         return true;
     }
     
-    /* 正常圆周运动 */
+    /* normal circular motion */
     float angle = 2.0f * PI * ((float)path->current_step / path->steps_per_circle) * path->direction;
     *x = path->r * cosf(angle);
     *y = path->r * sinf(angle);
@@ -966,7 +966,7 @@ void Robot::action_group_run(uint8_t id) {
 
   while(file.available()) {
     switch(act_state) {
-      case READ_FRAME_NUM: /*读取帧头*/
+      case READ_FRAME_NUM: /*read the frame header*/
         act_read_frame_num = (uint8_t)file.read();
         act_state = READ_FRAME_DATA;
         break;

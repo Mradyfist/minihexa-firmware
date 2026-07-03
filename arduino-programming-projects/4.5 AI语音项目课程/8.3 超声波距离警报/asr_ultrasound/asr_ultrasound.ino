@@ -15,7 +15,7 @@ void setup() {
 void loop() {
   dis = minihexa.sensor.get_distance();
   Serial.println(dis);
-  if (dis < 100) {         // 呼吸灯模式，周期0.1s，颜色红色
+  if (dis < 100) {         // breathing-light mode, period 0.1s, color red
     rgb1[0] = 255;
     rgb1[1] = 0;
     rgb1[2] = 0;
@@ -26,7 +26,7 @@ void loop() {
       tickstart = millis();
     }
   }
-  else {   // 红色渐变
+  else {   // red gradient
     rgb1[0] = 0;
     rgb1[1] = 255;
     rgb1[2] = 0;

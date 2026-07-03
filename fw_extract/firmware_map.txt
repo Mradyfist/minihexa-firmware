@@ -1,0 +1,28 @@
+MiniHexa firmware: minihexa_20250929_0x000.bin
+Size: 1945760 bytes (0x1db0a0)  [TRUNCATED: vfs partition @0x260000 is beyond EOF]
+Build: MicroPython v1.21.0-dirty on 2025-09-29  (mpy bytecode v6), GCC 11.2.0, ESP32
+
+Partition table @0x8000:
+  nvs       data addr=0x009000 size=0x006000 (24 KiB)  [present]
+  phy_init  data addr=0x00f000 size=0x001000 (4 KiB)  [present]
+  factory   app  addr=0x010000 size=0x250000 (2368 KiB)  [present]
+  vfs       data addr=0x260000 size=0x1a0000 (1664 KiB)  [NOT IN DUMP]
+
+Frozen modules (compiled into 'factory' app; no editable .py source present):
+  - _boot.py
+  - _boot_robot.py
+  - inisetup.py
+  - flashbdev.py
+  - __hw.py
+  - Hiwonder.py
+  - Hiwonder_DEV.py
+  - Hiwonder_BLE.py
+  - ledMatrix.py
+  - asyncio/*
+  - umqtt/*
+  - webrepl.py
+  - neopixel.py
+  - ds18x20.py
+  - onewire.py
+  - dht.py
+  - apa106.py

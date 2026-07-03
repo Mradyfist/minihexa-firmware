@@ -1,6 +1,6 @@
 /**
  * @file WonderLLM_porting.cpp
- * @brief WonderLLM模块驱动(硬件层应用)
+ * @brief WonderLLM module driver (hardware-layer application)
  * @author ZhiYuan (Gilbert@hiwonder.com)
  */
 
@@ -67,51 +67,51 @@ const char vision_prompt[] =
 
 
 /**
- * @brief 系统延时功能接口
+ * @brief System delay function interface
  */
 void delay_ms(int ms_num){
 		delay(ms_num);
 }
 	
 /**
- * @brief 系统实时时间获取接口
+ * @brief System real-time clock retrieval interface
  */
 uint32_t Get_time_now(){
 		return millis();
 }
 
 /**
- * @brief IIC扫描接口
- * @note  1.执行非必要，仅是出于程序健壮性的考虑
+ * @brief IIC scan interface
+ * @note  1. Not strictly required to run; only for the sake of program robustness
  */
 bool Detect_WonderLLM(){
   Wire.beginTransmission(WONDERLLM_SLAVE_ADDRESS);
-	delay_ms(15); //等待一段时间，等待以上配置写入寄存器内部并生效
+	delay_ms(15); //wait a while for the above configuration to be written into the registers and take effect
   return (Wire.endTransmission() == 0);
 }
 
 /**
- * @brief IIC速率配置接口
- * @note 涉及较长字符串（尤其是中文）的传输，必须使用调用本函数将IIC速率
- *       提升至400,000，否则WonderLLM将无法完整接收数据 
+ * @brief IIC rate configuration interface
+ * @note When transferring long strings (especially Chinese), this function must be called to set the IIC rate
+ *       up to 400,000, otherwise WonderLLM will not be able to receive the data completely 
  */
 void IIC_Config_MCP_Transmit(){
 		Wire.setClock(400000);
 }
 
 /**
- * @brief IIC速率配置接口
- * @note 1.执行非必要，如果其他IIC设备均支持40W速率通信，则可不必切换回
- *         较低的100W，执行该函数是出于兼容其他低速IIC设备的考虑
+ * @brief IIC rate configuration interface
+ * @note 1. Not strictly required to run; if all other IIC devices support the 40W rate, there is no need to switch back
+ *         the lower 100W; calling this function is for compatibility with other low-speed IIC devices
  */
 void IIC_Config_normal_Transmit(){
-		// 恢复I2C速率
+		// restore the I2C rate
 		Wire.setClock(100000);
 }
 
 /**
- * @brief I2C底层数据接收接口v1.1
- * @note  适配新版通信协议，JSON字符串分包接收，每包数据加上校验位最大长度为32字节
+ * @brief Low-level I2C data receive interface v1.1
+ * @note  Adapted to the new communication protocol; JSON strings are received in packets, each packet plus its checksum byte being at most 32 bytes
  * @return 0: success.
  *         1: received NACK.
  *         2: timeout.
@@ -146,9 +146,9 @@ int WonderLLM_Receive_Data(uint8_t* buffer, uint16_t size,bool stop_flag) {
 }
 
 /**
- * @brief I2C底层数据发送接口
- * @note 1.Wire库的实现使用了一个32字节的缓冲区，因此任何通信都应在此限制范围内进行。在单次传输中超出字节数的将会被丢弃。
- *       2.基于1的原因，发送时每32byte发送一次，剩余部分再按实际长度发送
+ * @brief Low-level I2C data send interface
+ * @note 1. The Wire library implementation uses a 32-byte buffer, so any communication should stay within this limit. Bytes exceeding this in a single transfer will be discarded.
+ *       2. Because of reason 1, data is sent 32 bytes at a time, and the remainder is sent according to its actual length
  * @return 0: success.
  *         1: data too long to fit in transmit buffer.
  *         2: received NACK on transmit of address.
@@ -171,32 +171,32 @@ int WonderLLM_Send_Data(uint8_t* buffer, uint16_t len) {
 
 	  // for(int i =0; i < integer_num; i++){
 
-		// 	//准备传输批量数据，每次32byte
+		// 	//prepare to transfer data in bulk, 32 bytes at a time
 		// 	Wire.beginTransmission(WONDERLLM_SLAVE_ADDRESS); 
 
 		// 	for(int y =0; y < 32; y ++){
-		// 		Wire.write(buffer[index]);             // 逐字节传入缓冲区
+		// 		Wire.write(buffer[index]);             // feed the buffer in byte by byte
 		// 		index ++;
 		// 	}
 
 	  //   transmit_result = Wire.endTransmission(false);
 		// 	if(transmit_result != 0 ){
-		// 		return transmit_result;      //发送数据但不产生停止位
+		// 		return transmit_result;      //send the data but do not generate a stop bit
 		// 	} 
 
 		// }
 
-		// //准备传输剩余不足32byte的数据
+		// //prepare to transfer the remaining data of less than 32 bytes
 		// Wire.beginTransmission(WONDERLLM_SLAVE_ADDRESS); 
 
 		// for(int z =0; z < surplus_num; z ++){
-		// 	Wire.write(buffer[index]);             // 逐字节传入缓冲区
+		// 	Wire.write(buffer[index]);             // feed the buffer in byte by byte
 		// 	index ++;
 		// }
 
 	  // transmit_result = Wire.endTransmission(true);
 		// if(transmit_result != 0 ){
-		// 	return transmit_result;      //发送数据并产生停止位
+		// 	return transmit_result;      //send the data and generate a stop bit
 		// }
 
 		// return transmit_result;

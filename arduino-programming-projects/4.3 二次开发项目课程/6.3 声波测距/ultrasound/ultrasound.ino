@@ -13,35 +13,35 @@ void setup() {
 }
 void loop() {
   dis = minihexa.sensor.get_distance();
-  if (dis > 0 && dis <= 80){         // 呼吸灯模式，周期0.1s，颜色红色
+  if (dis > 0 && dis <= 80){         // breathing-light mode, period 0.1s, color red
     rgb1[0] = 1;
     rgb1[1] = 0;
     rgb1[2] = 0;
     memcpy(rgb2, rgb1, sizeof(rgb1));
     minihexa.sensor.set_ultrasound_rgb(1, rgb1, rgb2);
   }
-  else if (dis > 80 && dis <= 180){   // 红色渐变
+  else if (dis > 80 && dis <= 180){   // red gradient
     s = map(dis,80,180,0,255);
     rgb1[0] = 255-s;
     rgb1[1] = 0;
     rgb1[2] = 0;
     memcpy(rgb2, rgb1, sizeof(rgb1));
   }
-  else if (dis > 180 && dis <= 320){              // 蓝色渐变
+  else if (dis > 180 && dis <= 320){              // blue gradient
     s = map(dis,180,320,0,255);
     rgb1[0] = 0;
     rgb1[1] = 0;
     rgb1[2] = s;   
     memcpy(rgb2, rgb1, sizeof(rgb1)); 
   }
-  else if (dis > 320 && dis <= 500){     // 绿色渐变
+  else if (dis > 320 && dis <= 500){     // green gradient
     s = map(dis,320,500,0,255);
     rgb1[0] = 0;
     rgb1[1] = s;
     rgb1[2] = 255-s;
     memcpy(rgb2, rgb1, sizeof(rgb1));
   }
-  else if (dis > 500){         // 绿色 
+  else if (dis > 500){         // green 
     rgb1[0] = 0;
     rgb1[1] = 255;
     rgb1[2] = 0;    

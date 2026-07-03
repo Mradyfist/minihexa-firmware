@@ -1,9 +1,9 @@
 #include "hiwonder_robot.h"
 
-//初始化MiniHexa对象
+//initialize the MiniHexa object
 Robot minihexa;
 
-//初始化运动状态
+//initialize the motion state
 Velocity_t vel = {0.0f,0.0f,0.0f};
 Vector_t pos = {0.0f,0.0f,0.0f};
 Euler_t att = {0.0f,0.0f,0.0f};
@@ -14,12 +14,12 @@ void setup() {
 }
 
 void loop() {
-    vel = {0.0f, 5.0f, 0.2f};//弧形左前进
-    minihexa.move(&vel, &pos, &att);//执行移动
+    vel = {0.0f, 5.0f, 0.2f};//arc forward to the left
+    minihexa.move(&vel, &pos, &att);//execute the move
     delay(5000);
 
-    vel = {0.0f, 5.0f, -0.2f};//弧形右前进
-    minihexa.move(&vel, &pos, &att);//执行移动
+    vel = {0.0f, 5.0f, -0.2f};//arc forward to the right
+    minihexa.move(&vel, &pos, &att);//execute the move
     delay(5000);
 }
 

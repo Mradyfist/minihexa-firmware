@@ -39,7 +39,7 @@ int wire_read_array(uint8_t addr, uint8_t reg, uint8_t *val, uint8_t len) {
   return i;
 }
 
-//写多个字节（不用寄存器）
+//write multiple bytes (without a register)
 bool wireWritemultiByte(uint8_t addr, uint8_t *val, unsigned int len)
 {   
   unsigned int sent = 0;
@@ -60,7 +60,7 @@ bool wireWritemultiByte(uint8_t addr, uint8_t *val, unsigned int len)
     return true;
 }
 
-//读指定长度字节（不用寄存器）
+//read a specified number of bytes (without a register)
 int wireReadmultiByte(uint8_t addr, uint8_t *val, unsigned int len)
 {
     unsigned int readLen = 0;
@@ -70,7 +70,7 @@ int wireReadmultiByte(uint8_t addr, uint8_t *val, unsigned int len)
 
         unsigned int received = Wire.requestFrom(addr, chunk);
         if (received == 0) {
-            return false;  // 设备无响应
+            return false;  // device not responding
         }
 
         for (unsigned int i = 0; i < received && readLen < len; i++)
@@ -78,5 +78,5 @@ int wireReadmultiByte(uint8_t addr, uint8_t *val, unsigned int len)
             val[readLen++] = Wire.read();
         }
     }
-    return true; // 返回实际读取的字节数
+    return true; // return the actual number of bytes read
 }

@@ -11,9 +11,9 @@ static RecData_t read_data(String data)
 
   while (data_update.indexOf('|') != -1)
   {
-    rec_data[index] = data_update.substring(0, data_update.indexOf('|'));  /* 提取字符串 */
-    data_update = data_update.substring(data_update.indexOf('|') + 1);       /* 更新字符串，去掉已提取的子字符串和分隔符 */
-    index++;      /* 更新索引 */
+    rec_data[index] = data_update.substring(0, data_update.indexOf('|'));  /* extract the string */
+    data_update = data_update.substring(data_update.indexOf('|') + 1);       /* update the string, removing the extracted substring and the separator */
+    index++;      /* update the index */
   }
 
   rec_data[index] = data_update;
@@ -86,6 +86,23 @@ static RecData_t read_data(String data)
         break;
     }
   }
+  else if(rec_data[0] == "D") {
+    rec.mode = MINIHEXA_ARM_CONTROL;
+  }
+  else if(rec_data[0] == "H") {
+    rec.mode = MINIHEXA_RGB_ADJUST;
+    for(uint8_t i = 0; i < 3; i++) {
+      rec.data[i] = (uint8_t)atoi(rec_data[1 + i].c_str());
+    }
+  }
+  else if(rec_data[0] == "I") {
+    rec.mode = MINIHEXA_AVOID;
+    rec.data[0] = (uint8_t)atoi(rec_data[1].c_str());
+  }
+  else if(rec_data[0] == "J") {
+    rec.mode = MINIHEXA_BALANCE;
+    rec.data[0] = (uint8_t)atoi(rec_data[1].c_str());
+  }
   else if(rec_data[0] == "L") {
     rec.mode = MINIHEXA_SERVO_CONTROL;
     for(uint8_t i = 0; i < 57; i++) {
@@ -94,6 +111,9 @@ static RecData_t read_data(String data)
   }
   else if(rec_data[0] == "M") {
     rec.mode = MINIHEXA_SERVO_DUTY_READ;
+  }
+  else if(rec_data[0] == "O") {
+    rec.mode = MINIHEXA_RESET;
   }
   else {
     rec.mode = MINIHEXA_NULL;
@@ -104,7 +124,7 @@ static RecData_t read_data(String data)
 
 void UartServerManager::begin()
 {
-  Serial.setRxBufferSize(2048);  // 增大接收缓冲区到2KB
+  Serial.setRxBufferSize(2048);  // increase the receive buffer to 2KB
   Serial.begin(115200);
 }
 

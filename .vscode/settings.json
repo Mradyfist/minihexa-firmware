@@ -1,0 +1,8 @@
+{
+  "clangd.arguments": [
+    "--query-driver=/home/daniel/.arduino15/packages/esp32/tools/**/bin/xtensa-esp32-elf-*",
+    "--background-index",
+    "--header-insertion=never",
+    "--completion-style=detailed"
+  ]
+}

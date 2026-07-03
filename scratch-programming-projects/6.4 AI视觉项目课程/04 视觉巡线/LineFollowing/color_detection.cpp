@@ -27,8 +27,8 @@ static uint16_t segment2[segmentSize];
 send_color_data_t block_segment;
 
 
-/* 用户可在此处调整颜色阈值
- * 结构: 颜色阈值 - 颜色的面积阈值 - 颜色名称
+/* the user can adjust the color thresholds here
+ * structure: color threshold - color area threshold - color name
  */
 vector<color_info_t> std_color_info = {
     { {0, 44, 53, 255, 151, 233}, 64, "red"},
@@ -39,11 +39,11 @@ vector<color_info_t> std_color_info = {
 
 static uint8_t state_value;
 
-/* 获取颜色检测的结果 */
+/* get the color detection result */
 static void get_color_detection_result(uint16_t *image_ptr, int image_height, int image_width, vector<color_detect_result_t> &results, uint16_t color, color_data_t *color_data)
 {
   int max_color_column_index = 0;
-  /* 寻找同色最大色块 */
+  /* find the largest color block of the same color */
   for (int i = 0; i < results.size(); ++i)
   {
     if (results[i].area > g_max_color_area)
@@ -105,17 +105,17 @@ static void modifyPixel(uint16_t *imageBuffer, size_t width,
         return;
     }
 
-    // 计算像素在一维数组中的索引
+    // compute the pixel index in the one-dimensional array
     int index = y * width + x;
 
-    // 组合新的颜色值
+    // combine the new color value
     uint16_t newPixel = (newRed << 11) | (newGreen << 5) | newBlue;
 
-    // 将修改后的像素值写回图像缓冲区
+    // write the modified pixel value back to the image buffer
     imageBuffer[index] = newPixel;
 }
 
-// 将RGB565图像分成三份
+// split the RGB565 image into three parts
 static void splitImageIntoThreeSegments(uint16_t *imageBuffer, size_t width, size_t height, 
                                  uint16_t *segment1, uint16_t *segment2) {
     size_t segmentHeight = height / 3;
@@ -126,11 +126,11 @@ static void splitImageIntoThreeSegments(uint16_t *imageBuffer, size_t width, siz
             int index = (int)(y * width + x);
             int localIndex = (int)((y % segmentHeight) * width + x);
             if (y < segmentHeight) {
-                // 第一部分
+                // part one
                 segment1[localIndex] = imageBuffer[index];
             } 
             else if (y < 2 * segmentHeight) {
-                // 第二部分
+                // part two
                 segment2[localIndex] = imageBuffer[index];
             } 
         }
@@ -148,10 +148,10 @@ static void mergeSegmentsIntoImage(uint16_t *newImage, size_t width, size_t heig
             int localIndex = (y % segmentHeight) * width + x;
 
             if (y < segmentHeight) {
-                // 第一部分
+                // part one
                 newImage[index] = segment1[localIndex];
             } else if (y < 2 * segmentHeight) {
-                // 第二部分
+                // part two
                 newImage[index] = segment2[localIndex];
             }
 
@@ -164,7 +164,7 @@ static void task_process_handler(void *arg)
   camera_fb_t *frame = NULL;
   ColorDetector detector;
 
-  /* 注册颜色信息 */
+  /* register color information */
   for (int i = 0; i < std_color_info.size(); ++i)
   {
     detector.register_color(std_color_info[i].color_thresh, std_color_info[i].area_thresh, std_color_info[i].name);

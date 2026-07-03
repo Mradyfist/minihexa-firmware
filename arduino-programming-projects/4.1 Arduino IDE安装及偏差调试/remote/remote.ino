@@ -48,7 +48,11 @@ void loop() {
       if(millis() - tick2_start > 1000) {
         Serial.printf("A|%d&", minihexa.board.bat_voltage);
         tick2_start = millis();
-      }       
+      }
+      if(message.mode == MINIHEXA_AVOID && millis() - tick1_start > 200) {
+        dis = minihexa.sensor.get_distance();
+        tick1_start = millis();
+      }
       if(wifi_server.begin() == true) {
         if(wifi_server.udp_server() == true) {
           if(wifi_server.tcp_server() == true) {
@@ -386,7 +390,9 @@ void loop() {
   if(message.mode != 0) {
     switch(ble_server.state) {
     case SWITCH_UART:
-      memset(&uart.rec, 0, sizeof(uart.rec));
+      if(message.mode != MINIHEXA_AVOID && message.mode != MINIHEXA_BALANCE) {
+        memset(&uart.rec, 0, sizeof(uart.rec));
+      }
       break;
 
     case SWITCH_WIFI:

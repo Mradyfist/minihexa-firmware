@@ -1,35 +1,35 @@
-import Hiwonder  # 导入Hiwonder机器人控制库
-import time      # 导入时间模块，用于延时控制
+import Hiwonder  # import the Hiwonder robot control library
+import time      # import the time module, used for delay control
 
 
-# 创建机器人对象
+# create the robot object
 robot = Hiwonder.Robot()
 
-# 前进运动
+# forward motion
 robot.go([0, 2, 0], 3, 600)
 time.sleep(4)
 
-# 前进运动
+# forward motion
 robot.go([0, 2, 0], 2, 1000)
 time.sleep(4)
 
-# 后退运动
+# backward motion
 robot.go([0, -2, 0], 3, 600)
 time.sleep(4)
 
-# 后退运动
+# backward motion
 robot.go([0, -2, 0], 2, 1000)
 time.sleep(4)
 
-# 顺时针旋转
+# rotate clockwise
 robot.go([0, 0, -2], 3, 600)
 time.sleep(4)
 
-# 顺时针旋转
+# rotate clockwise
 robot.go([0, 0, -2], 2, 1000)
 time.sleep(4)
 
-# 重置机器人到初始状态
+# reset the robot to its initial state
 robot.reset()
 
 

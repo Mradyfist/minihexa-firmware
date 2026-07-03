@@ -16,32 +16,32 @@ void setup() {
 void loop() {
   result = minihexa.sensor.asr.rec_recognition();
   switch(result) {
-    case 1:  /* 前进 */
+    case 1:  /* move forward */
       vel = {0.0f, 2.0f, 0.0f};
       minihexa.move(&vel, &pos, &att);
       break;
 
-    case 2:  /* 后退 */
+    case 2:  /* move backward */
       vel = {0.0f, -2.0f, 0.0f};
       minihexa.move(&vel, &pos, &att);
       break;
 
-    case 3:  /* 左转 */
+    case 3:  /* turn left */
       vel = {0.0f, 0.0f, 2.0f};
       minihexa.move(&vel, &pos, &att);
       break;
 
-    case 4:  /* 右转 */
+    case 4:  /* turn right */
       vel = {0.0f, 0.0f, -2.0f};
       minihexa.move(&vel, &pos, &att);
       break;
 
-    case 9:  /* 停止 */
+    case 9:  /* stop */
       vel = {0.0f, 0.0f, 0.0f};
       minihexa.move(&vel, &pos, &att);
       break;
 
-    case 29:  /* 走两步 */
+    case 29:  /* walk two steps */
       vel = {0.0f, 2.0f, 0.0f};
       minihexa.move(&vel, &pos, &att, 1000, 2); 
       delay(2100);

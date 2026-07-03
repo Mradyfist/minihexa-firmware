@@ -7,41 +7,41 @@ Hiwonder.disableLowPowerAlarm()
 robot = Hiwonder.Robot()
 cam = Hiwonder_DEV.DEV_ESP32S3Cam()
 
-position = [0, 0, 0]  # [x, y, z] 单位：厘米
-initial_z = position[2]  # 保存初始高度
+position = [0, 0, 0]  # [x, y, z] unit: cm
+initial_z = position[2]  # save the initial height
 
 while True:
   rec = cam.read_face()
   if rec:
     if rec[2] > 0:
-      # 俯仰+10度
+      # pitch +10 degrees
       robot.set_body_angle([0, 10, 0], 300)
       time.sleep_ms(300)
-      # 俯仰-10度
+      # pitch -10 degrees
       robot.set_body_angle([0, -10, 0], 300)
       time.sleep_ms(300)
-      # 俯仰+10度
+      # pitch +10 degrees
       robot.set_body_angle([0, 10, 0], 300)
       time.sleep_ms(300)
-      # 俯仰-10度
+      # pitch -10 degrees
       robot.set_body_angle([0, -10, 0], 300)
       time.sleep_ms(300)
-      # 回到水平姿态
+      # return to the level pose
       robot.set_body_angle([0, 0, 0], 300)
       time.sleep_ms(300)
-      # 向右移动2cm
+      # move 2cm to the right
       robot.set_body_pose([2.0, 0, 0], 200)
       time.sleep_ms(200)
-      # 向左移动2cm
+      # move 2cm to the left
       robot.set_body_pose([-2.0, 0, 0], 200)
       time.sleep_ms(200)
-      # 向右移动2cm
+      # move 2cm to the right
       robot.set_body_pose([2.0, 0, 0], 200)
       time.sleep_ms(200)
-      # 向左移动2cm
+      # move 2cm to the left
       robot.set_body_pose([-2.0, 0, 0], 200)
       time.sleep_ms(200)
-      # 回到中心位置
+      # return to the center position
       robot.set_body_pose([0, 0, 0], 200)
       time.sleep_ms(200)
   time.sleep(0.04)

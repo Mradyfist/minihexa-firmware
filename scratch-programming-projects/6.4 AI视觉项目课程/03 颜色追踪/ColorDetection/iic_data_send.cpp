@@ -26,27 +26,27 @@ static void iic_receive(int len)
 
 static void iic_request()
 {
-    /* 发送红色色块数据 */
+    /* send red color-block data */
     if(rec == 0x00) 
     {
         send_data[0] = send_color_data[0].center_x;
         send_data[1] = send_color_data[0].center_y;
         send_data[2] = send_color_data[0].width;
         send_data[3] = send_color_data[0].length;
-        /* 打包发送色块数据 */
+        /* pack and send color-block data */
         Wire.slaveWrite(send_data, sizeof(send_data));
     }
-    /* 发送绿色色块数据 */
+    /* send green color-block data */
     else if(rec == 0x01)
     {
         send_data[0] = send_color_data[1].center_x;
         send_data[1] = send_color_data[1].center_y;
         send_data[2] = send_color_data[1].width;
         send_data[3] = send_color_data[1].length;
-        /* 打包发送色块数据 */
+        /* pack and send color-block data */
         Wire.slaveWrite(send_data, sizeof(send_data));
     }
-    /* 发送蓝色色块数据 */
+    /* send blue color-block data */
     else if(rec == 0x02)
     {
         
@@ -54,20 +54,20 @@ static void iic_request()
         send_data[1] = send_color_data[2].center_y;
         send_data[2] = send_color_data[2].width;
         send_data[3] = send_color_data[2].length;
-        /* 打包发送色块数据 */
+        /* pack and send color-block data */
         Wire.slaveWrite(send_data, sizeof(send_data));
     }
-    /* 发送紫色色块数据 */
+    /* send purple color-block data */
     else if(rec == 0x03)
     {
         send_data[0] = send_color_data[3].center_x;
         send_data[1] = send_color_data[3].center_y;
         send_data[2] = send_color_data[3].width;
         send_data[3] = send_color_data[3].length;
-        /* 打包发送色块数据 */
+        /* pack and send color-block data */
         Wire.slaveWrite(send_data, sizeof(send_data));      
     }
-    /* 发送色块id号 */
+    /* send the color-block id number */
     else if(rec == 0x04)
     {
         
@@ -75,18 +75,18 @@ static void iic_request()
         send_data[1] = send_color_data[1].id;
         send_data[2] = send_color_data[2].id;
         send_data[3] = send_color_data[3].id;    
-        /* 打包发送色块数据 */
+        /* pack and send color-block data */
         Wire.slaveWrite(send_data, sizeof(send_data));  
     }
 }
 
 static void task_process_handler(void *arg)
 {
-  /* IIC初始化 */
+  /* IIC initialization */
   Wire.begin((uint8_t)I2C_SLAVE_ADDRESS, sdaPin, sclPin, i2cFrequency);
-  /* 注册接收数据的回调函数 */
+  /* register the data-receive callback function */
   Wire.onReceive(iic_receive);
-  /* 注册请求数据的回调函数 */
+  /* register the data-request callback function */
   Wire.onRequest(iic_request);
 
   while (true)

@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - -ferror-limit=0       # keep parsing past errors so features/Outline work even if a TU isn't in the compile DB
+  Remove:
+    - -mlongcalls           # Xtensa-only flags clangd's parser doesn't need
+    - -mtext-section-literals
+    - -fno-tree-switch-conversion
+    - -fstrict-volatile-bitfields
+    - -free
+    - -fipa-pta

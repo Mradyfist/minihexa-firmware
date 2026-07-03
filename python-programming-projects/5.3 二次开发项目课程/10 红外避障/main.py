@@ -8,33 +8,33 @@ robot = Hiwonder.Robot()
 ir1 = Hiwonder_DEV.DEV_IR(32)
 ir2 = Hiwonder_DEV.DEV_IR(18)
 
-# 主循环
+# main loop
 while True:
-    # 读取两个红外传感器的状态
-    # 注意：True表示检测到障碍物，False表示无障碍物
+    # read the state of the two infrared sensors
+    # note: True means an obstacle is detected, False means no obstacle
     ir1_state = ir1.read()
     ir2_state = ir2.read()
     
-    if ir1_state and ir2_state:  # 两个传感器都检测到障碍物
-        # 后退2秒
+    if ir1_state and ir2_state:  # both sensors detect an obstacle
+        # move backward for 2 seconds
         robot.go([0, -2, 0], 2, 800)
-        time.sleep(2)  # 等待2秒
+        time.sleep(2)  # wait 2 seconds
         
-        # 顺时针旋转
+        # rotate clockwise
         robot.go([0, 0, 2], 2, 800)
-        time.sleep(2)  # 等待2秒
+        time.sleep(2)  # wait 2 seconds
     
-    elif ir1_state and not ir2_state:  # 只有传感器1检测到障碍物
-        # 顺时针旋转
+    elif ir1_state and not ir2_state:  # only sensor 1 detects an obstacle
+        # rotate clockwise
         robot.go([0, 0, 2], 2, 800)
-        time.sleep(2)  # 等待2秒
+        time.sleep(2)  # wait 2 seconds
     
-    elif not ir1_state and ir2_state:  # 只有传感器2检测到障碍物
-        # 逆时针旋转
+    elif not ir1_state and ir2_state:  # only sensor 2 detects an obstacle
+        # rotate counterclockwise
         robot.go([0, 0, -2], 2, 800)
-        time.sleep(2)  # 等待2秒
+        time.sleep(2)  # wait 2 seconds
     
-    else:  # 两个传感器都没有检测到障碍物
-        # 前进（连续运动）
+    else:  # neither sensor detects an obstacle
+        # move forward (continuous motion)
         robot.go([0, 2, 0], -1, 800)
     time.sleep(0.1)

@@ -1,15 +1,15 @@
 '''
-  MiniHexa——偏差设置程序（只需要设置一次，除非重新烧录固件）
+  MiniHexa - deviation setup program (only needs to be set once, unless the firmware is reflashed)
 '''
 
 
-import Hiwonder  # 导入Hiwonder机器人控制库
-import time      # 导入时间模块，用于延时控制
+import Hiwonder  # import the Hiwonder robot control library
+import time      # import the time module, used for delay control
 
-# 创建机器人对象
+# create the robot object
 robot = Hiwonder.Robot()
 
-# 设置舵机偏差值
+# set the servo deviation value
 robot.set_deviation(1 , 24)
 robot.set_deviation(2 , 28)
 robot.set_deviation(3 , 9)

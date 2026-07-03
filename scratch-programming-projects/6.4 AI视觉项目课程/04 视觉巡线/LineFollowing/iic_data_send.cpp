@@ -28,7 +28,7 @@ static void iic_request()
 {
     switch(rec)
     {
-    /* 红色色块数据 */
+    /* red color-block data */
     case 0xA0:
         send_data[0] = send_color_data.segment1[0].center_x;
         send_data[1] = send_color_data.segment1[0].center_y;
@@ -42,7 +42,7 @@ static void iic_request()
         send_data[3] = send_color_data.segment2[0].length;
         break;
 
-    /* 绿色色块数据 */
+    /* green color-block data */
     case 0xA2:
         send_data[0] = send_color_data.segment1[1].center_x;
         send_data[1] = send_color_data.segment1[1].center_y;
@@ -56,7 +56,7 @@ static void iic_request()
         send_data[3] = send_color_data.segment2[1].length;
         break;
 
-    /* 蓝色色块数据 */
+    /* blue color-block data */
     case 0xA4:
         send_data[0] = send_color_data.segment1[2].center_x;
         send_data[1] = send_color_data.segment1[2].center_y;
@@ -70,7 +70,7 @@ static void iic_request()
         send_data[3] = send_color_data.segment2[2].length;
         break;
 
-    /* 紫色色块数据 */
+    /* purple color-block data */
     case 0xA6:
         send_data[0] = send_color_data.segment1[3].center_x;
         send_data[1] = send_color_data.segment1[3].center_y;
@@ -84,17 +84,17 @@ static void iic_request()
         send_data[3] = send_color_data.segment2[3].length;
         break;
     }
-    /* 打包发送色块数据 */
+    /* pack and send color-block data */
     Wire.slaveWrite(send_data, sizeof(send_data));
 }
 
 static void task_process_handler(void *arg)
 {
-  /* IIC初始化 */
+  /* IIC initialization */
   Wire.begin((uint8_t)I2C_SLAVE_ADDRESS, sdaPin, sclPin, i2cFrequency);
-  /* 注册接收数据的回调函数 */
+  /* register the data-receive callback function */
   Wire.onReceive(iic_receive);
-  /* 注册请求数据的回调函数 */
+  /* register the data-request callback function */
   Wire.onRequest(iic_request);
 
   while (true)

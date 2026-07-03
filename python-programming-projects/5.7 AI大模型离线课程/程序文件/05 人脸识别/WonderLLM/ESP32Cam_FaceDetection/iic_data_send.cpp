@@ -38,11 +38,11 @@ static void iic_request()
 
 static void task_process_handler(void *arg)
 {
-  /* IIC初始化 */
+  /* IIC initialization */
   Wire.begin((uint8_t)I2C_SLAVE_ADDRESS, sdaPin, sclPin, i2cFrequency);
-  /* 注册接收数据的回调函数 */
+  /* register the data-receive callback function */
   Wire.onReceive(iic_receive);
-  /* 注册请求数据的回调函数 */
+  /* register the data-request callback function */
   Wire.onRequest(iic_request);
 
   while (true)

@@ -22,7 +22,7 @@ color_data_t color_data[5];
 
 
 
-/* 颜色阈值 用户可在此处调整 */
+/* color threshold; the user can adjust it here */
 vector<color_info_t> std_color_info = {
     {{151, 15, 70, 255, 90, 255}, 64, "red"},
     {{23, 34, 70, 255, 90, 255}, 64, "yellow"},
@@ -31,11 +31,11 @@ vector<color_info_t> std_color_info = {
     {{130, 155, 70, 255, 90, 255}, 64, "purple"}
 };
 
-/* 获取颜色检测的结果 */
+/* get the color detection result */
 static void get_color_detection_result(uint16_t *image_ptr, int image_height, int image_width, vector<color_detect_result_t> &results, uint16_t color)
 {
   int g_max_color_column_index = 0;
-  /* 寻找同色最大色块 */
+  /* find the largest color block of the same color */
   for (int i = 0; i < results.size(); ++i)
   {
     if (results[i].area > g_max_color_area)
@@ -105,7 +105,7 @@ static void task_process_handler(void *arg)
 {
   camera_fb_t *frame = NULL;
   ColorDetector detector;
-  /* 注册颜色信息 */
+  /* register color information */
   for (int i = 0; i < std_color_info.size(); ++i)
   {
     detector.register_color(std_color_info[i].color_thresh, std_color_info[i].area_thresh, std_color_info[i].name);

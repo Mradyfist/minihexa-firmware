@@ -36,7 +36,7 @@
 
 #define TFT_CS   2
 #define TFT_DC   1
-#define TFT_RST -1   // 如果绑3.3V，就写 -1
+#define TFT_RST -1   // if tied to 3.3V, use -1
 #define TFT_BL  14
 
 void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height);
@@ -48,9 +48,9 @@ static Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 // ===========================
 const char* ssid = "HW_ESP32S3CAM";
 const char* password = "";
-IPAddress local_ip(192, 168, 5, 1);       // 设置自定义 IP 地址
-IPAddress gateway(192, 168, 1, 1);        // 网关地址
-IPAddress subnet(255, 255, 255, 0);       // 子网掩码
+IPAddress local_ip(192, 168, 5, 1);       // set a custom IP address
+IPAddress gateway(192, 168, 1, 1);        // gateway address
+IPAddress subnet(255, 255, 255, 0);       // subnet mask
 
 void setup() 
 {
@@ -147,15 +147,15 @@ void setup()
 #endif
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
-  // 初始化 SPI (必须指定SCK, MOSI引脚)
-  SPI.begin(21, -1, 47);  // SCK=21, MISO=-1(不用), MOSI=47
+  // initialize SPI (the SCK and MOSI pins must be specified)
+  SPI.begin(21, -1, 47);  // SCK=21, MISO=-1 (unused), MOSI=47
 
-  // 初始化屏幕（分辨率要填对）
+  // initialize the screen (the resolution must be correct)
   tft.init(240, 320);
-  tft.setRotation(3);  // 旋转使坐标系为 320x240
-  // 提升 SPI 时钟以提高刷新速度
+  tft.setRotation(3);  // rotate so the coordinate system is 320x240
+  // raise the SPI clock to improve the refresh rate
   tft.setSPISpeed(80000000);
-  tft.fillScreen(ST77XX_BLACK);  //填充黑色背景
+  tft.fillScreen(ST77XX_BLACK);  //fill with a black background
 
   xTaskCreatePinnedToCore(
         tft_task,     
@@ -168,16 +168,16 @@ void setup()
     );
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password, 6, false, 4); // SSID, 密码, 信道6, 不隐藏SSID, 最大连接数4
+  WiFi.softAP(ssid, password, 6, false, 4); // SSID, password, channel 6, do not hide SSID, max 4 connections
   // WiFi.begin(ssid, password);
   WiFi.setSleep(false);
-  // 配置 IP 地址
+  // configure the IP address
   if (!WiFi.softAPConfig(local_ip, gateway, subnet)) {
     Serial.println("Failed to configure IP");
   }
   Serial.println("WiFi AP Started");
   Serial.print("AP IP Address: ");
-  Serial.println(WiFi.softAPIP()); // 输出 AP 的 IP 地址
+  Serial.println(WiFi.softAPIP()); // print the AP's IP address
 
 
   startCameraServer();
@@ -203,7 +203,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         work_capacity = pixel_count;
     }
 
-    // 字节交换
+    // byte swap
     for (int i = 0; i < pixel_count; i++) {
         uint16_t v = rgb565_buf[i];
         work_buf[i] = (v << 8) | (v >> 8);
@@ -212,7 +212,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
     int screen_w = tft.width();
     int screen_h = tft.height();
 
-    // 特例：相机 240x320，屏幕 320x240
+    // special case: camera 240x320, screen 320x240
     if (width == 240 && height == 320 && screen_w == 320 && screen_h == 240) {
         static uint16_t *rotated = nullptr;
         static int rotated_capacity = 0;
@@ -227,7 +227,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
             for (int x = 0; x < width; x++) {
                 int dst_x = y;
                 int dst_y = width - 1 - x;
-                // **水平镜像修改**
+                // **horizontal mirror modification**
                 dst_y = screen_w - 1 - dst_y;
                 rotated[dst_y * screen_w + dst_x] = work_buf[y * width + x];
             }
@@ -236,7 +236,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         return;
     }
 
-    // 分辨率相同，直接满屏绘制
+    // same resolution, draw full screen directly
     if (width == screen_w && height == screen_h) {
         static uint16_t *mirror_buf = nullptr;
         static int mirror_capacity = 0;
@@ -247,14 +247,14 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                mirror_buf[y * width + x] = work_buf[y * width + (width - 1 - x)]; // 水平镜像
+                mirror_buf[y * width + x] = work_buf[y * width + (width - 1 - x)]; // horizontal mirror
             }
         }
         tft.drawRGBBitmap(0, 0, mirror_buf, width, height);
         return;
     }
 
-    // 其他缩放/裁切分支（Cover模式）
+    // other scale/crop branch (Cover mode)
     static uint16_t *scaled = nullptr;
     static int scaled_capacity = 0;
     int scaled_pixels = screen_w * screen_h;
@@ -290,7 +290,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int dx = 0; dx < screen_w; dx++) {
             x_map[dx] = (int)((int64_t)dx * width / screen_w);
-            // **水平镜像修改**
+            // **horizontal mirror modification**
             x_map[dx] = width - 1 - x_map[dx];
         }
 
@@ -328,7 +328,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int dx = 0; dx < screen_w; dx++) {
             x_map[dx] = src_x_offset + (int)((int64_t)dx * visible_src_w / screen_w);
-            // **水平镜像修改**
+            // **horizontal mirror modification**
             x_map[dx] = width - 1 - x_map[dx];
         }
 
@@ -351,7 +351,7 @@ void tft_task(void *pvParameters) {
     camera_fb_t *fb = nullptr;
 
     while (true) {
-        // 获取摄像头帧
+        // get the camera frame
         fb = esp_camera_fb_get();
         if (!fb) {
             Serial.println("Camera capture failed");
@@ -359,10 +359,10 @@ void tft_task(void *pvParameters) {
             continue;
         }
 
-        //显示画面
+        //display the image
         tft_show_rgb565((const uint16_t *)fb->buf, fb->width, fb->height);
 
-        // 释放摄像头帧
+        // release the camera frame
         esp_camera_fb_return(fb);
 
         vTaskDelay(33 / portTICK_PERIOD_MS);

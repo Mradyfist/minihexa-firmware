@@ -26,7 +26,7 @@ static void iic_receive(int len)
 
 static void iic_request()
 {
-  /* 红色色块数据 */
+  /* red color-block data */
   if(rec == 0x00) 
   {
     send_data[0] = color_data[0].center_x;
@@ -34,7 +34,7 @@ static void iic_request()
     send_data[2] = color_data[0].width;
     send_data[3] = color_data[0].length;
   }
-  /* 绿色色块数据 */
+  /* green color-block data */
   else if(rec == 0x01)
   {
     send_data[0] = color_data[2].center_x;
@@ -42,7 +42,7 @@ static void iic_request()
     send_data[2] = color_data[2].width;
     send_data[3] = color_data[2].length;
   }
-  /* 蓝色色块数据 */
+  /* blue color-block data */
   else if(rec == 0x02)
   {
     send_data[0] = color_data[3].center_x;
@@ -51,18 +51,18 @@ static void iic_request()
     send_data[3] = color_data[3].length;
   }
 
-  /* 发送色块数据 */
+  /* send the color-block data */
   Wire.slaveWrite(send_data, sizeof(send_data));
 
 }
 
 static void task_process_handler(void *arg)
 {
-  /* IIC初始化 */
+  /* IIC initialization */
   Wire.begin((uint8_t)I2C_SLAVE_ADDRESS, sdaPin, sclPin, i2cFrequency);
-  /* 注册接收数据的回调函数 */
+  /* register the data-receive callback function */
   Wire.onReceive(iic_receive);
-  /* 注册请求数据的回调函数 */
+  /* register the data-request callback function */
   Wire.onRequest(iic_request);
 
   while (true)

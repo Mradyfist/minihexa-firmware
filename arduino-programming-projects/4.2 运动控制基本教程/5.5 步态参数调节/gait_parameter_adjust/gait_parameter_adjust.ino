@@ -1,16 +1,16 @@
 #include "hiwonder_robot.h"
-//初始化minihexa对象
+//initialize the minihexa object
 Robot minihexa;
 
-//定义运动模式变量count
+//define the motion mode variable count
 uint8_t count = 0;
-//离散化过程的迭代次数（落脚次数）
+//number of iterations in the discretization process (number of footfalls)
 int step_num = -1;
-//初始化运动时间
+//initialize the motion time
 uint32_t move_time = 1000;
-//抬腿高度
+//leg lift height
 float leg_lift = 2.0f;
-//初始化机体运动
+//initialize the body motion
 Velocity_t vel = {0.0f,0.0f,0.0f};
 Vector_t pos = {0.0f,0.0f,0.0f};
 Euler_t att = {0.0f,0.0f,0.0f};
@@ -24,8 +24,8 @@ void loop() {
   switch(count) {
     case 0:
       count++;
-      vel = {0.0f, 2.0f, 0.0f};//前进
-      move_time = 600;//定义运行时间
+      vel = {0.0f, 2.0f, 0.0f};//move forward
+      move_time = 600;//define the run time
       step_num = 3;
       break;
   

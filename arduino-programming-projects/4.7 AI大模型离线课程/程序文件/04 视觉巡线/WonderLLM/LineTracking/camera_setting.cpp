@@ -7,7 +7,7 @@
 
 #define TFT_CS   2
 #define TFT_DC   1
-#define TFT_RST -1   // 如果绑3.3V，就写 -1
+#define TFT_RST -1   // if tied to 3.3V, use -1
 #define TFT_BL  14
 
 static Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
@@ -27,10 +27,10 @@ static void task_process_handler(void *arg)
         if (frame)
         {
             frame_count++;
-            // 尝试发送帧到队列，如果队列满了就释放帧
+            // try to send the frame to the queue; if the queue is full, release the frame
             if (xQueueSend(xQueueFrameO, &frame, 0) != pdTRUE)
             {
-                // 队列满了，释放当前帧
+                // queue is full, release the current frame
                 esp_camera_fb_return(frame);
                 dropped_frames++;
                 if (dropped_frames % 100 == 0) {
@@ -42,7 +42,7 @@ static void task_process_handler(void *arg)
         {
             ESP_LOGW(TAG, "Failed to get camera frame");
         }
-        // 添加小延时避免CPU占用过高
+        // add a small delay to avoid excessive CPU usage
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
@@ -92,7 +92,7 @@ void register_camera(const pixformat_t pixel_fromat,
     config.xclk_freq_hz = XCLK_FREQ_HZ;
     config.frame_size = frame_size;
     config.pixel_format = pixel_fromat; // for streaming
-    config.grab_mode = CAMERA_GRAB_LATEST;  // 总是获取最新帧
+    config.grab_mode = CAMERA_GRAB_LATEST;  // always grab the latest frame
     config.fb_location = CAMERA_FB_IN_PSRAM;
     config.jpeg_quality = 16;
     config.fb_count = fb_count;
@@ -123,15 +123,15 @@ void register_camera(const pixformat_t pixel_fromat,
     
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
-    // 初始化 SPI (必须指定SCK, MOSI引脚)
-    SPI.begin(21, -1, 47);  // SCK=21, MISO=-1(不用), MOSI=47
+    // initialize SPI (the SCK and MOSI pins must be specified)
+    SPI.begin(21, -1, 47);  // SCK=21, MISO=-1 (unused), MOSI=47
 
-    // 初始化屏幕（分辨率要填对）
+    // initialize the screen (the resolution must be correct)
     tft.init(240, 320);
-    tft.setRotation(3);  // 旋转使坐标系为 320x240
-    // 提升 SPI 时钟以提高刷新速度
+    tft.setRotation(3);  // rotate so the coordinate system is 320x240
+    // raise the SPI clock to improve the refresh rate
     tft.setSPISpeed(80000000);
-    tft.fillScreen(ST77XX_BLACK);  //填充黑色背景
+    tft.fillScreen(ST77XX_BLACK);  //fill with a black background
 
     xQueueFrameO = frame_o;
     xTaskCreatePinnedToCore(task_process_handler, TAG, 3 * 1024, NULL, 5, NULL, 1);
@@ -150,7 +150,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         work_capacity = pixel_count;
     }
 
-    // 字节交换
+    // byte swap
     for (int i = 0; i < pixel_count; i++) {
         uint16_t v = rgb565_buf[i];
         work_buf[i] = (v << 8) | (v >> 8);
@@ -159,7 +159,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
     int screen_w = tft.width();
     int screen_h = tft.height();
 
-    // 特例：相机 240x320，屏幕 320x240
+    // special case: camera 240x320, screen 320x240
     if (width == 240 && height == 320 && screen_w == 320 && screen_h == 240) {
         static uint16_t *rotated = nullptr;
         static int rotated_capacity = 0;
@@ -174,7 +174,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
             for (int x = 0; x < width; x++) {
                 int dst_x = y;
                 int dst_y = width - 1 - x;
-                // **水平镜像修改**
+                // **horizontal mirror modification**
                 dst_y = screen_w - 1 - dst_y;
                 rotated[dst_y * screen_w + dst_x] = work_buf[y * width + x];
             }
@@ -183,7 +183,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         return;
     }
 
-    // 分辨率相同，直接满屏绘制
+    // same resolution, draw full screen directly
     if (width == screen_w && height == screen_h) {
         static uint16_t *mirror_buf = nullptr;
         static int mirror_capacity = 0;
@@ -194,14 +194,14 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                mirror_buf[y * width + x] = work_buf[y * width + (width - 1 - x)]; // 水平镜像
+                mirror_buf[y * width + x] = work_buf[y * width + (width - 1 - x)]; // horizontal mirror
             }
         }
         tft.drawRGBBitmap(0, 0, mirror_buf, width, height);
         return;
     }
 
-    // 其他缩放/裁切分支（Cover模式）
+    // other scale/crop branch (Cover mode)
     static uint16_t *scaled = nullptr;
     static int scaled_capacity = 0;
     int scaled_pixels = screen_w * screen_h;
@@ -237,7 +237,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int dx = 0; dx < screen_w; dx++) {
             x_map[dx] = (int)((int64_t)dx * width / screen_w);
-            // **水平镜像修改**
+            // **horizontal mirror modification**
             x_map[dx] = width - 1 - x_map[dx];
         }
 
@@ -275,7 +275,7 @@ void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height)
         }
         for (int dx = 0; dx < screen_w; dx++) {
             x_map[dx] = src_x_offset + (int)((int64_t)dx * visible_src_w / screen_w);
-            // **水平镜像修改**
+            // **horizontal mirror modification**
             x_map[dx] = width - 1 - x_map[dx];
         }
 

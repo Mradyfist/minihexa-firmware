@@ -9,18 +9,18 @@ uint8_t HW_Servo::checksum_sum(const uint8_t *buf, uint16_t len) {
 }
 
 void HW_Servo::transmit_packet(const uint8_t *data, uint8_t data_len) {
-  /* 计算总帧长度（帧头2 + 类型号1 + 数据长度1 + 数据data_len + 校验1） */
+  /* compute the total frame length (2 header + 1 type + 1 data-length + data_len data + 1 checksum) */
   uint8_t frame_len = 2 + 1 + 1 + data_len + 1;
   uint8_t frame[frame_len];
 
-    /* 填充帧头*/
+    /* fill in the frame header*/
     frame[0] = PACKET_HEADER1;
     frame[1] = PACKET_HEADER2;
 
-    /* 类型 */
+    /* type */
     frame[2] = PACKET_FUNC_PWM_SERVO_CONTROL;
 
-    /* 数据长度（data_len）*/
+    /* data length (data_len)*/
     frame[3] = data_len + 2 + 1;
 
     for (uint8_t i = 0; i < data_len; i++) {
@@ -29,13 +29,13 @@ void HW_Servo::transmit_packet(const uint8_t *data, uint8_t data_len) {
       // Serial.print(" ,");
     }
 
-    /* 计算校验和（校验帧头、功能号、数据长度、数据）*/
+    /* compute the checksum (over frame header, function number, data length, data)*/
     uint8_t checksum = checksum_sum(frame, frame_len - 1);
-    // /* 填充校验位（最后一位）*/
+    // /* fill in the checksum byte (last byte) */
     frame[frame_len - 1] = checksum;
     // Serial.print(checksum);
     // Serial.println();
-    /* 通过串口发送帧 */
+    /* send the frame over the serial port */
     Serial1.write(frame, frame_len);
     Serial1.flush();
 }
@@ -60,8 +60,8 @@ void HW_Servo::transmit_servo_packet(ServoArg_t* servo, uint8_t num, uint16_t ti
 }
 
 void HW_Servo::begin() {
-  /* 舵机驱动 */
-  Serial1.setTxBufferSize(2048);  // 增大接收缓冲区到2KB
+  /* servo driver */
+  Serial1.setTxBufferSize(2048);  // increase the receive buffer to 2KB
   Serial1.begin(230400, SERIAL_8N1, RXD2,TXD2);
 }
 

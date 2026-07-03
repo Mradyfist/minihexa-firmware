@@ -7,10 +7,10 @@ robot = Hiwonder.Robot()
 imu = Hiwonder.IMU()
 time.sleep(1)
 
-# 开启自平衡功能
+# enable the self-balancing function
 robot.homeostasis(True)
 time.sleep(3)
 
-# 停止自平衡功能
+# disable the self-balancing function
 # robot.homeostasis(False)
 

@@ -8,27 +8,27 @@
 extern "C" {
 #endif
 
-/*向从机传输一个字节*/
+/*transmit one byte to the slave*/
 bool wire_write_byte(uint8_t addr, uint8_t val);
 
-/*向从机寄存器写入若干字节*/
+/*write several bytes to a slave register*/
 bool wire_write_array(uint8_t addr, 
                       uint8_t reg,
                       uint8_t *val,
                       uint16_t len);
 
-/*在从机寄存器读出若干字节*/
+/*read several bytes from a slave register*/
 int wire_read_array(uint8_t addr, 
                     uint8_t reg, 
                     uint8_t *val, 
                     uint8_t len);
 
-/*向从机写入若干字节**/
+/*write several bytes to the slave**/
 bool wireWritemultiByte(uint8_t addr, 
                         uint8_t *val, 
                         unsigned int len);
 
-/*向从机写入若干字节*/
+/*write several bytes to the slave*/
 int wireReadmultiByte(uint8_t addr, 
                       uint8_t *val, 
                       unsigned int len);

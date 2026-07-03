@@ -23,7 +23,7 @@ color_data_t color_data[4];
 
 
 
-/* 在RGB565图像上绘制边框（支持简单线宽） */
+/* draw a border on the RGB565 image (simple line width supported) */
 static inline void draw_rect_rgb565(uint16_t *image_ptr, int image_height, int image_width,
                                     int x0, int y0, int x1, int y1, uint16_t color, int thickness)
 {
@@ -75,7 +75,7 @@ static inline void draw_rect_rgb565(uint16_t *image_ptr, int image_height, int i
   }
 }
 
-/* 颜色阈值 用户可在此处调整 */
+/* color threshold; the user can adjust it here */
 vector<color_info_t> std_color_info = {
     {{138, 255, 48, 255, 211, 255}, 64, "red"},
     {{48, 80, 70, 161, 90, 255}, 64, "green"},
@@ -84,11 +84,11 @@ vector<color_info_t> std_color_info = {
 };
 
 
-/* 获取颜色检测的结果 */
+/* get the color detection result */
 static void get_color_detection_result(uint16_t *image_ptr, int image_height, int image_width, vector<color_detect_result_t> &results, uint16_t color)
 {
   int g_max_color_column_index = 0;
-  /* 寻找同色最大色块 */
+  /* find the largest color block of the same color */
   for (int i = 0; i < results.size(); ++i)
   {
     if (results[i].area > g_max_color_area)
@@ -144,14 +144,14 @@ static void get_color_detection_result(uint16_t *image_ptr, int image_height, in
         break;
     }
   }
-  /* 本函数不绘制，仅更新 color_data */
+  /* this function does not draw; it only updates color_data */
 }
 
 static void task_process_handler(void *arg)
 {
   camera_fb_t *frame = NULL;
   ColorDetector detector;
-  /* 注册颜色信息 */
+  /* register color information */
   for (int i = 0; i < std_color_info.size(); ++i)
   {
     detector.register_color(std_color_info[i].color_thresh, std_color_info[i].area_thresh, std_color_info[i].name);
@@ -185,7 +185,7 @@ static void task_process_handler(void *arg)
         get_color_detection_result((uint16_t *)frame->buf, (int)frame->height, (int)frame->width, results[i], draw_colors[i % draw_colors_num]);
       }
 
-      /* 仅绘制所有颜色中面积最大的一个色块 */
+      /* draw only the single largest color block among all colors */
       int best_color_idx = -1;
       int best_result_idx = -1;
       int best_area = 0;
@@ -219,7 +219,7 @@ static void task_process_handler(void *arg)
         draw_rect_rgb565((uint16_t *)frame->buf, (int)frame->height, (int)frame->width, x0, y0, x1, y1, color, 2);
       }
 
-      // 显示处理后的画面到TFT
+      // display the processed image on the TFT
       tft_show_rgb565((const uint16_t *)frame->buf, frame->width, frame->height);
     }
     if (xQueueFrameO)

@@ -7,40 +7,40 @@ Hiwonder.disableLowPowerAlarm()
 robot = Hiwonder.Robot()
 asr = Hiwonder_DEV.DEV_ASR()
 
-FORWARD_ID = 1      # "前进"
-BACKWARD_ID = 2     # "后退"
-LEFT_ID = 3         # "左转"
-RIGHT_ID = 4        # "右转"
-STOP_ID = 9         # "停止"
-WALK_ID = 29        # "走两步"
+FORWARD_ID = 1      # "forward"
+BACKWARD_ID = 2     # "backward"
+LEFT_ID = 3         # "turn left"
+RIGHT_ID = 4        # "turn right"
+STOP_ID = 9         # "stop"
+WALK_ID = 29        # "walk two steps"
 
-# 主循环
+# main loop
 while True:
-    # 执行语音识别
+    # run speech recognition
     result = asr.getResult()
-    # 根据识别结果执行不同动作
+    # perform different actions based on the recognition result
     if result == FORWARD_ID:
-        # 前进
+        # move forward
         robot.go([0.0, 2.0, 0.0])
         
     elif result == BACKWARD_ID:
-        # 后退
+        # move backward
         robot.go([0.0, -2.0, 0.0])
         
     elif result == LEFT_ID:
-        # 左转
+        # turn left
         robot.go([0.0, 0.0, 2.0])
         
     elif result == RIGHT_ID:
-        # 右转
+        # turn right
         robot.go([0.0, 0.0, -2.0])
         
     elif result == STOP_ID:
-        # 停止
+        # stop
         robot.go([0.0, 0.0, 0.0])
         
     elif result == WALK_ID:
-        # "走两步" - 前进两步
+        # "walk two steps" - step forward twice
         robot.go([0.0, 2.0, 0.0],2)
         time.sleep(2)
     

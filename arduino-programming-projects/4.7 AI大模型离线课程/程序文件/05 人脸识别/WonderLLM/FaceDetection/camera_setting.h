@@ -376,11 +376,11 @@ extern "C"
                          const QueueHandle_t frame_o);
 
     /**
-     * @brief 在TFT上显示一帧RGB565图像
+     * @brief Display one RGB565 image frame on the TFT
      * 
-     * @param rgb565_buf  图像数据指针（RGB565）
-     * @param width       图像宽度
-     * @param height      图像高度
+     * @param rgb565_buf  pointer to the image data (RGB565)
+     * @param width       image width
+     * @param height      image height
      */
     void tft_show_rgb565(const uint16_t *rgb565_buf, int width, int height);
 

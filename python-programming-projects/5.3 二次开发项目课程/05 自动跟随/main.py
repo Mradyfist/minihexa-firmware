@@ -2,19 +2,19 @@ import Hiwonder
 import Hiwonder_DEV
 import time
 
-# 禁用低电量警报
+# disable the low-battery alarm
 Hiwonder.disableLowPowerAlarm()
 
-# 创建机器人对象和超声波传感器对象
+# create the robot object and the ultrasonic sensor object
 robot = Hiwonder.Robot()
 sonar = Hiwonder_DEV.DEV_SONAR()
 
-# 初始化RGB灯为白色
+# initialize the RGB light to white
 sonar.setRGB(0, 255, 255, 255)
 
-# 主循环
+# main loop
 while True:
-    # 读取超声波传感器距离（单位：厘米）
+    # read the ultrasonic sensor distance (unit: cm)
     distance = sonar.getDistance()
     print(distance)
     if distance > 20:

@@ -14,9 +14,9 @@ RecData_t BLEServerManager::read_data(String data)
   data_update = data;
 
   while (data_update.indexOf('|') != -1) {
-    rec_data[index] = data_update.substring(0, data_update.indexOf('|'));  /* 提取字符串 */
-    data_update = data_update.substring(data_update.indexOf('|') + 1);       /* 更新字符串，去掉已提取的子字符串和分隔符 */
-    index++;      /* 更新索引 */
+    rec_data[index] = data_update.substring(0, data_update.indexOf('|'));  /* extract the string */
+    data_update = data_update.substring(data_update.indexOf('|') + 1);       /* update the string, removing the extracted substring and the separator */
+    index++;      /* update the index */
   }
   rec_data[index] = data_update;
   // for(uint8_t i  =0; i < 7; i++) {
@@ -81,12 +81,12 @@ void BLEServerManager::MyCallbacks::onWrite(BLECharacteristic *pCharacteristic)
 {
   std::string value = pCharacteristic->getValue();
   if (value.length() > 0) {
-    ble_buf += value;  // 将接收到的数据追加到缓冲区
+    ble_buf += value;  // append the received data to the buffer
     size_t endPos = ble_buf.find('&');
     if(endPos != std::string::npos) {
       rec_state = RECEIVE_DATA_SUCCESS;
-      std::string completeData = ble_buf.substr(0, endPos);  // 提取完整数据
-      ble_buf.erase(0, endPos + 1);  // 移除已处理的数据
+      std::string completeData = ble_buf.substr(0, endPos);  // extract the complete data
+      ble_buf.erase(0, endPos + 1);  // remove the processed data
       rec = BLEServerManager::read_data(completeData.c_str());
       ESP_LOGI("BLE", "receive %s\n", completeData.c_str());
     }

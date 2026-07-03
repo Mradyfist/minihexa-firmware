@@ -65,7 +65,7 @@ static void task_process_handler(void *arg)
         detect_result.width = 0;
         detect_result.length = 0;
       }
-      // 显示处理后的画面到TFT
+      // display the processed image on the TFT
       tft_show_rgb565((const uint16_t *)frame->buf, frame->width, frame->height);
     }
     if (xQueueFrameO)
