@@ -151,6 +151,20 @@ static uint32_t gait_min_move_time(uint8_t gait_smooth) {
   return 400u + (uint32_t)gait_smooth * 8u;
 }
 
+static uint32_t quantize_move_time(uint32_t move_time) {
+  if((move_time / 4) % SAMPLE_INTERVAL != 0) {
+    move_time = ((move_time / 4) / SAMPLE_INTERVAL) * 4 * SAMPLE_INTERVAL;
+  }
+  return move_time;
+}
+
+static float velocity_magnitude(const Velocity_t &velocity) {
+  if(fabs(velocity.vx - 0.001f) < 0.001f && fabs(velocity.vy - 0.001f) < 0.001f) {
+    return fabs(velocity.omega);
+  }
+  return 1.0f / invsqrt(pow(velocity.vx, 2) + pow(velocity.vy, 2));
+}
+
 static void apply_gait_smooth_params(Robot *robot, float *step_length, uint32_t *move_time) {
   if(robot->gait_smooth == 0) {
     return;
@@ -711,13 +725,30 @@ void Robot::cal_omni_move_end_point() {
     step_length = 1 / invsqrt(pow(velocity.vx, 2) + pow(velocity.vy, 2));
   }
 
-  if(step_length > max_half_step_length) {
+  if(speed_mode == 1) {
+    const float max_mag = (fabs(velocity.vx - 0.001f) < 0.001f &&
+                           fabs(velocity.vy - 0.001f) < 0.001f) ? 2.5f : 3.0f;
+    const float min_ratio = 0.08f;
+    const uint32_t max_move_time = 8000u;
+    float speed_ratio = velocity_magnitude(velocity) / max_mag;
+    if(speed_ratio < min_ratio) {
+      speed_ratio = min_ratio;
+    }
+    step_length = max_half_step_length;
+    move_time = (uint32_t)((float)move_time / speed_ratio);
+    if(move_time < gait_min_move_time(gait_smooth)) {
+      move_time = gait_min_move_time(gait_smooth);
+    }
+    if(move_time > max_move_time) {
+      move_time = max_move_time;
+    }
+    move_time = quantize_move_time(move_time);
+  }
+  else if(step_length > max_half_step_length) {
     move_time = move_time / (step_length / max_half_step_length);
     move_time = move_time < gait_min_move_time(gait_smooth) ? gait_min_move_time(gait_smooth) : move_time;
     step_length = max_half_step_length;
-    if((move_time / 4) % SAMPLE_INTERVAL != 0) {
-      move_time = ((move_time / 4) / SAMPLE_INTERVAL) * 4 * SAMPLE_INTERVAL;
-    }
+    move_time = quantize_move_time(move_time);
   }
 
   apply_gait_smooth_params(this, &step_length, &move_time);

@@ -209,6 +209,8 @@ class Robot {
     GaitMode gait_mode = GAIT_TRIPOD;
     /** 0 = fastest / snappiest gait, 100 = slowest / smoothest. */
     uint8_t gait_smooth = 0;
+    /** 0 = velocity scales step distance; 1 = fixed step, velocity scales cycle time. */
+    uint8_t speed_mode = 0;
     uint8_t pose_leg_lift_mask = 0;
     uint8_t pose_leg_lift_sign_flip = 0;
     float pose_leg_lift_z = 0.0f;

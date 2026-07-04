@@ -27,6 +27,7 @@ RecData_t parse_command_frame(const String &data) {
     }
     rec.data[3] = (index >= 4) ? (uint8_t)atoi(rec_data[4].c_str()) : 0;
     rec.data[4] = (index >= 5) ? (uint8_t)atoi(rec_data[5].c_str()) : 255;
+    rec.data[5] = (index >= 6) ? (uint8_t)atoi(rec_data[6].c_str()) : 255;
   }
   else if (rec_data[0] == "F") {
     rec.mode = MINIHEXA_POSE_CONTROL;

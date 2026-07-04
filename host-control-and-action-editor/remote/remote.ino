@@ -218,6 +218,9 @@ void loop() {
     if(message.data[4] <= 100) {
       minihexa.gait_smooth = message.data[4];
     }
+    if(message.data[5] <= 1) {
+      minihexa.speed_mode = message.data[5];
+    }
     minihexa.move(&vel, &pos, &att);
     break;
 
