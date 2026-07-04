@@ -155,6 +155,8 @@ class RobotLeg {
     Vector_t goal_point = {6.5f, 0.0f, -4.0f};
     /** Per-leg pose lift amount (cm); drives femur/foot curl after IK. */
     float pose_lift_curl = 0.0f;
+    /** Invert femur/foot curl direction for this leg (see ``pose_leg_lift_sign_flip``). */
+    bool pose_lift_flip = false;
     /** Support-leg hip spread blend (0..1) after IK. */
     float pose_stance_hip = 0.0f;
     /**
@@ -165,7 +167,7 @@ class RobotLeg {
      * @return true   -running
      * @return false  -not running
      */
-    bool move(Vector_t point, uint32_t time);
+    bool move(Vector_t point, uint32_t time, bool send_servo = true);
 
     /**
      * @brief Get the current coordinate point
@@ -289,6 +291,24 @@ class Robot {
      * 
      */
     void _wake_up();
+
+    /**
+     * @brief Apply extended pose (same fields as ``F|...&`` host command).
+     */
+    void apply_pose_command(
+      int8_t yaw_p, int8_t pitch_p, int8_t roll_p,
+      int8_t x_p, int8_t y_p, int8_t z_p,
+      uint8_t lift_mask, int8_t lift_z_p, uint8_t lift_sign_flip,
+      uint8_t stance_mask, int8_t stance_spread_p,
+      uint32_t move_ms);
+
+    /** Block while running pose IK + per-leg lift/stance (timer paused). */
+    void wait_pose_ms(uint32_t ms);
+
+    /**
+     * @brief Rear onto hind legs with front-leg lift and rock/wiggle.
+     */
+    void rear_up(void);
 
     // void coor_action1();
     // void coor_action2();

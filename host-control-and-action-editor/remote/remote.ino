@@ -28,6 +28,18 @@ Vector_t pos = {0.0f,0.0f,0.0f};
 Euler_t att = {0.0f,0.0f,0.0f};
 
 static void apply_pose_message(const RecData_t &msg) {
+  uint32_t pose_time = msg.data[6] ? 200 : 0;
+
+  if(vel.vx == 0.0f && vel.vy == 0.0f && vel.omega == 0.0f) {
+    minihexa.apply_pose_command(
+      (int8_t)msg.data[0], (int8_t)msg.data[1], (int8_t)msg.data[2],
+      (int8_t)msg.data[3], (int8_t)msg.data[4], (int8_t)msg.data[5],
+      msg.data[7], (int8_t)msg.data[8], msg.data[9],
+      msg.data[10], (int8_t)msg.data[11],
+      pose_time);
+    return;
+  }
+
   pos.z = fmap((float)(int8_t)msg.data[5], 0.0f, 30.0f, 0.0f, 3.0f);
   pos.x = fmap((float)(int8_t)msg.data[3], -50.0f, 50.0f, -3.0f, 3.0f);
   pos.y = fmap((float)(int8_t)msg.data[4], -50.0f, 50.0f, -3.0f, 3.0f);
@@ -36,19 +48,12 @@ static void apply_pose_message(const RecData_t &msg) {
   att.pitch = fmap((float)(int8_t)msg.data[1], -50.0f, 50.0f, -20.0f, 20.0f);
   att.yaw = fmap(-(float)(int8_t)msg.data[0], -50.0f, 50.0f, -60.0f, 60.0f);
 
-  uint32_t pose_time = msg.data[6] ? 200 : 0;
   minihexa.pose_leg_lift_mask = msg.data[7];
   minihexa.pose_leg_lift_sign_flip = msg.data[9];
   minihexa.pose_leg_lift_z = fmap((float)(int8_t)msg.data[8], 0.0f, 30.0f, 0.0f, 5.5f);
   minihexa.pose_stance_mask = msg.data[10];
   minihexa.pose_stance_spread = fmap((float)(int8_t)msg.data[11], 0.0f, 30.0f, 0.0f, 1.0f);
-
-  if(vel.vx == 0.0f && vel.vy == 0.0f && vel.omega == 0.0f) {
-    minihexa.move(&vel, &pos, &att, pose_time);
-  }
-  else {
-    minihexa.move(&vel, &pos, &att);
-  }
+  minihexa.move(&vel, &pos, &att);
 }
 
 static void apply_rgb_message(const RecData_t &msg) {
@@ -259,6 +264,10 @@ void loop() {
 
     case 5:
       minihexa.acting_cute();
+      break;
+
+    case 6:
+      minihexa.rear_up();
       break;
 
     default:

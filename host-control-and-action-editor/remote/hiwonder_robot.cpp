@@ -2,6 +2,26 @@
 #include "Preferences.h"
 
 static HW_Servo servo;
+
+static void leg_servos_to_args(const RobotLeg &leg, ServoArg_t *out) {
+  uint8_t base = (uint8_t)((leg.id - 1) * 3);
+  out[base + 0] = {(uint8_t)leg.joint_a.id, (uint16_t)((int)leg.joint_a.duty + leg.joint_a.deviation)};
+  out[base + 1] = {(uint8_t)leg.joint_b.id, (uint16_t)((int)leg.joint_b.duty + leg.joint_b.deviation)};
+  out[base + 2] = {(uint8_t)leg.joint_c.id, (uint16_t)((int)leg.joint_c.duty + leg.joint_c.deviation)};
+}
+
+static void flush_leg_servos(RobotLeg &leg1, RobotLeg &leg2, RobotLeg &leg3,
+                             RobotLeg &leg4, RobotLeg &leg5, RobotLeg &leg6,
+                             uint16_t move_ms) {
+  ServoArg_t servos[18];
+  leg_servos_to_args(leg1, servos);
+  leg_servos_to_args(leg2, servos);
+  leg_servos_to_args(leg3, servos);
+  leg_servos_to_args(leg4, servos);
+  leg_servos_to_args(leg5, servos);
+  leg_servos_to_args(leg6, servos);
+  servo.multi_set(servos, 18, move_ms);
+}
 static Preferences preferences;      /* NVS non-volatile storage */
 
 RobotJoint::RobotJoint() {}
@@ -106,13 +126,15 @@ static int pose_stance_hip_sign(uint8_t leg_id) {
 }
 
 static void apply_pose_leg_lift(
-  RobotLeg &leg, uint8_t leg_id, uint8_t mask, float lift_z) {
+  RobotLeg &leg, uint8_t leg_id, uint8_t mask, float lift_z, uint8_t sign_flip_mask) {
   if(mask & (1u << (leg_id - 1u))) {
     /* Foot curl is applied after IK; skip Z shift to avoid fighting pose_control. */
     leg.pose_lift_curl = lift_z;
+    leg.pose_lift_flip = (sign_flip_mask & (1u << (leg_id - 1u))) != 0;
   }
   else {
     leg.pose_lift_curl = 0.0f;
+    leg.pose_lift_flip = false;
   }
 }
 
@@ -155,6 +177,12 @@ static void clear_pose_leg_adjustments(Robot *robot) {
   robot->leg4.pose_lift_curl = 0.0f;
   robot->leg5.pose_lift_curl = 0.0f;
   robot->leg6.pose_lift_curl = 0.0f;
+  robot->leg1.pose_lift_flip = false;
+  robot->leg2.pose_lift_flip = false;
+  robot->leg3.pose_lift_flip = false;
+  robot->leg4.pose_lift_flip = false;
+  robot->leg5.pose_lift_flip = false;
+  robot->leg6.pose_lift_flip = false;
   robot->leg1.pose_stance_hip = 0.0f;
   robot->leg2.pose_stance_hip = 0.0f;
   robot->leg3.pose_stance_hip = 0.0f;
@@ -181,14 +209,20 @@ static void apply_all_pose_leg_lifts(Robot *robot) {
     robot->leg4.pose_lift_curl = 0.0f;
     robot->leg5.pose_lift_curl = 0.0f;
     robot->leg6.pose_lift_curl = 0.0f;
+    robot->leg1.pose_lift_flip = false;
+    robot->leg2.pose_lift_flip = false;
+    robot->leg3.pose_lift_flip = false;
+    robot->leg4.pose_lift_flip = false;
+    robot->leg5.pose_lift_flip = false;
+    robot->leg6.pose_lift_flip = false;
   }
   else {
-    apply_pose_leg_lift(robot->leg1, 1, mask, lift_z);
-    apply_pose_leg_lift(robot->leg2, 2, mask, lift_z);
-    apply_pose_leg_lift(robot->leg3, 3, mask, lift_z);
-    apply_pose_leg_lift(robot->leg4, 4, mask, lift_z);
-    apply_pose_leg_lift(robot->leg5, 5, mask, lift_z);
-    apply_pose_leg_lift(robot->leg6, 6, mask, lift_z);
+    apply_pose_leg_lift(robot->leg1, 1, mask, lift_z, robot->pose_leg_lift_sign_flip);
+    apply_pose_leg_lift(robot->leg2, 2, mask, lift_z, robot->pose_leg_lift_sign_flip);
+    apply_pose_leg_lift(robot->leg3, 3, mask, lift_z, robot->pose_leg_lift_sign_flip);
+    apply_pose_leg_lift(robot->leg4, 4, mask, lift_z, robot->pose_leg_lift_sign_flip);
+    apply_pose_leg_lift(robot->leg5, 5, mask, lift_z, robot->pose_leg_lift_sign_flip);
+    apply_pose_leg_lift(robot->leg6, 6, mask, lift_z, robot->pose_leg_lift_sign_flip);
   }
 
   if(stance_mask == 0 || stance_spread <= 0.0f) {
@@ -209,7 +243,7 @@ static void apply_all_pose_leg_lifts(Robot *robot) {
   }
 }
 
-bool RobotLeg::move(Vector_t point, uint32_t time) {
+bool RobotLeg::move(Vector_t point, uint32_t time, bool send_servo) {
   bool dir;
   float map_time;
   int32_t diff;
@@ -283,6 +317,10 @@ bool RobotLeg::move(Vector_t point, uint32_t time) {
         femur_off = (int)(kFemurDelta * blend);
         foot_off = -(int)(kFootDelta * blend);
       }
+      if(this->pose_lift_flip) {
+        femur_off = -femur_off;
+        foot_off = -foot_off;
+      }
       this->joint_b.duty += femur_off;
       this->joint_c.duty += foot_off;
       this->joint_b.duty = this->joint_b.duty > 2143 ? 2143 : (this->joint_b.duty < 857 ? 857 : this->joint_b.duty);
@@ -299,7 +337,9 @@ bool RobotLeg::move(Vector_t point, uint32_t time) {
     ServoArg_t servos[3] = {{this->joint_a.id, (uint16_t)((int)this->joint_a.duty + this->joint_a.deviation)},
                             {this->joint_b.id, (uint16_t)((int)this->joint_b.duty + this->joint_b.deviation)},
                             {this->joint_c.id, (uint16_t)((int)this->joint_c.duty + this->joint_c.deviation)}};
-    servo.multi_set(servos, 3, 0);  
+    if(send_servo) {
+      servo.multi_set(servos, 3, 0);
+    }
   }
   return is_busy;
 }
@@ -538,18 +578,16 @@ void Robot::update() {
         default:
           break;
       }
-      leg1.move(leg1.trajectory_point, leg1.set_time);
-      leg2.move(leg2.trajectory_point, leg2.set_time);
-      leg3.move(leg3.trajectory_point, leg3.set_time);
-      leg4.move(leg4.trajectory_point, leg4.set_time);
-      leg5.move(leg5.trajectory_point, leg5.set_time);
-      leg6.move(leg6.trajectory_point, leg6.set_time);
-      // leg1.move(vector_arg_ops(&leg1.trajectory_point, &leg1.offset, ADD), leg1.set_time);
-      // leg2.move(vector_arg_ops(&leg2.trajectory_point, &leg2.offset, ADD), leg2.set_time);
-      // leg3.move(vector_arg_ops(&leg3.trajectory_point, &leg3.offset, ADD), leg3.set_time);
-      // leg4.move(vector_arg_ops(&leg4.trajectory_point, &leg4.offset, ADD), leg4.set_time);
-      // leg5.move(vector_arg_ops(&leg5.trajectory_point, &leg5.offset, ADD), leg5.set_time);
-      // leg6.move(vector_arg_ops(&leg6.trajectory_point, &leg6.offset, ADD), leg6.set_time);
+      leg1.move(leg1.trajectory_point, leg1.set_time, false);
+      leg2.move(leg2.trajectory_point, leg2.set_time, false);
+      leg3.move(leg3.trajectory_point, leg3.set_time, false);
+      leg4.move(leg4.trajectory_point, leg4.set_time, false);
+      leg5.move(leg5.trajectory_point, leg5.set_time, false);
+      leg6.move(leg6.trajectory_point, leg6.set_time, false);
+      {
+        uint16_t batch_time = leg1.set_time > 0 ? SAMPLE_INTERVAL : 0;
+        flush_leg_servos(leg1, leg2, leg3, leg4, leg5, leg6, batch_time);
+      }
       break;
 
     case ACTION_GROUP:
@@ -821,6 +859,12 @@ void Robot::reset(void) {
   leg4.pose_lift_curl = 0.0f;
   leg5.pose_lift_curl = 0.0f;
   leg6.pose_lift_curl = 0.0f;
+  leg1.pose_lift_flip = false;
+  leg2.pose_lift_flip = false;
+  leg3.pose_lift_flip = false;
+  leg4.pose_lift_flip = false;
+  leg5.pose_lift_flip = false;
+  leg6.pose_lift_flip = false;
   leg1.pose_stance_hip = 0.0f;
   leg2.pose_stance_hip = 0.0f;
   leg3.pose_stance_hip = 0.0f;
@@ -1010,6 +1054,170 @@ void Robot::acting_cute() {
   pos = {0.0f,0.0f,position.z};  
   move(&vel, &pos, &att, 200);
   delay(200);
+}
+
+void Robot::apply_pose_command(
+  int8_t yaw_p, int8_t pitch_p, int8_t roll_p,
+  int8_t x_p, int8_t y_p, int8_t z_p,
+  uint8_t lift_mask, int8_t lift_z_p, uint8_t lift_sign_flip,
+  uint8_t stance_mask, int8_t stance_spread_p,
+  uint32_t move_ms) {
+  Velocity_t vel = {0.0f, 0.0f, 0.0f};
+  Vector_t pos = {
+    fmap((float)x_p, -50.0f, 50.0f, -3.0f, 3.0f),
+    fmap((float)y_p, -50.0f, 50.0f, -3.0f, 3.0f),
+    fmap((float)z_p, 0.0f, 30.0f, 0.0f, 3.0f),
+  };
+  Euler_t att;
+  att.pitch = fmap((float)pitch_p, -50.0f, 50.0f, -20.0f, 20.0f);
+  att.roll = fmap((float)roll_p, -50.0f, 50.0f, -20.0f, 20.0f);
+  att.yaw = fmap(-(float)yaw_p, -50.0f, 50.0f, -60.0f, 60.0f);
+
+  pose_leg_lift_mask = lift_mask;
+  pose_leg_lift_sign_flip = lift_sign_flip;
+  pose_leg_lift_z = lift_z_p > 0 ? fmap((float)lift_z_p, 0.0f, 30.0f, 0.0f, 5.5f) : 0.0f;
+  pose_stance_mask = stance_mask;
+  pose_stance_spread = stance_spread_p > 0 ? fmap((float)stance_spread_p, 0.0f, 30.0f, 0.0f, 1.0f) : 0.0f;
+
+  func_state = CRAWL;
+  move(&vel, &pos, &att, move_ms);
+}
+
+void Robot::wait_pose_ms(uint32_t ms) {
+  if(ms == 0) {
+    return;
+  }
+
+  xTimerStop(timer, portMAX_DELAY);
+  uint32_t end = millis() + ms;
+  while((int32_t)(millis() - end) < 0) {
+    update();
+    delay(SAMPLE_INTERVAL);
+  }
+  xTimerStart(timer, portMAX_DELAY);
+}
+
+static void rear_pose_step(
+  Robot *robot,
+  int8_t yaw_p,
+  int8_t pitch_p,
+  int8_t roll_p,
+  int8_t x_p,
+  int8_t y_p,
+  int8_t z_p,
+  int8_t lift_p,
+  int8_t stance_p,
+  uint32_t move_ms,
+  uint32_t hold_ms) {
+  /* Bit i => leg i+1. Front pair 3/4 lift; hind/mid support 1/2/5/6 spread. */
+  static const uint8_t kLiftMask = (1u << 2) | (1u << 3);
+  static const uint8_t kStanceMask = (1u << 0) | (1u << 1) | (1u << 4) | (1u << 5);
+  /* No sign flip: leg 4 default left-side curl lifts outward in pitched rear-up. */
+  static const uint8_t kSignFlip = 0;
+
+  robot->apply_pose_command(
+    yaw_p,
+    pitch_p,
+    roll_p,
+    x_p,
+    y_p,
+    z_p,
+    lift_p > 0 ? kLiftMask : 0,
+    lift_p,
+    lift_p > 0 ? kSignFlip : 0,
+    stance_p > 0 ? kStanceMask : 0,
+    stance_p,
+    move_ms);
+  robot->wait_pose_ms(hold_ms);
+}
+
+void Robot::rear_up(void) {
+  static const int8_t kRearPitch = -63;
+  static const int8_t kShiftBack = -33;
+  static const int8_t kBodyZ = 12;
+  static const int8_t kFrontRiseLift = 30;
+  static const int8_t kFrontWaveLift = 40;
+  static const int8_t kRearStanceSpread = 25;
+  static const float kRollScale = 2.5f;
+  static const float kRearRollDeg = 14.0f;
+  static const float kYawWiggleDeg = 10.0f;
+  static const uint16_t kRiseSteps = 4;
+  static const uint16_t kWavePrepSteps = 2;
+  static const uint16_t kWiggleCycles = 3;
+  static const uint16_t kStepsPerCycle = 16;
+
+  func_state = CRAWL;
+  pose_leg_lift_mask = 0;
+  pose_leg_lift_sign_flip = 0;
+  pose_leg_lift_z = 0.0f;
+  pose_stance_mask = 0;
+  pose_stance_spread = 0.0f;
+  clear_pose_leg_adjustments(this);
+
+  rear_pose_step(this, 0, 0, 0, 0, 0, 0, 0, 0, 200, 300);
+
+  for(uint16_t step = 1; step <= kRiseSteps; step++) {
+    float t = (float)step / (float)kRiseSteps;
+    rear_pose_step(
+      this,
+      0,
+      (int8_t)lroundf((float)kRearPitch * t),
+      0,
+      0,
+      (int8_t)lroundf((float)kShiftBack * t),
+      (int8_t)lroundf((float)kBodyZ * t),
+      (int8_t)lroundf((float)kFrontRiseLift * t),
+      (int8_t)lroundf((float)kRearStanceSpread * t),
+      400,
+      400);
+  }
+
+  for(uint16_t step = 1; step <= kWavePrepSteps; step++) {
+    float t = (float)step / (float)kWavePrepSteps;
+    int8_t lift = (int8_t)lroundf(
+      (float)kFrontRiseLift + t * (float)(kFrontWaveLift - kFrontRiseLift));
+    rear_pose_step(
+      this,
+      0,
+      kRearPitch,
+      0,
+      0,
+      kShiftBack,
+      kBodyZ,
+      lift,
+      kRearStanceSpread,
+      350,
+      350);
+  }
+
+  uint16_t total_steps = kWiggleCycles * kStepsPerCycle;
+  for(uint16_t step = 0; step < total_steps; step++) {
+    float angle = 2.0f * PI * (float)step / (float)kStepsPerCycle;
+    int8_t roll = (int8_t)lroundf(kRearRollDeg * sinf(angle) * kRollScale);
+    int8_t yaw = (int8_t)lroundf(-kYawWiggleDeg * sinf(2.0f * angle) * 50.0f / 60.0f);
+    float lift_bob = 0.75f + 0.25f * (1.0f + sinf(2.0f * angle)) / 2.0f;
+    int8_t lift = (int8_t)lroundf((float)kFrontWaveLift * lift_bob);
+    rear_pose_step(
+      this,
+      yaw,
+      kRearPitch,
+      roll,
+      0,
+      kShiftBack,
+      kBodyZ,
+      lift,
+      kRearStanceSpread,
+      100,
+      100);
+  }
+
+  rear_pose_step(this, 0, 0, 0, 0, 0, 0, 0, 0, 500, 500);
+  pose_leg_lift_mask = 0;
+  pose_leg_lift_sign_flip = 0;
+  pose_leg_lift_z = 0.0f;
+  pose_stance_mask = 0;
+  pose_stance_spread = 0.0f;
+  clear_pose_leg_adjustments(this);
 }
 
 void Robot::wake_up() {
