@@ -1,6 +1,7 @@
 #include "wifi_server.h"
 #include "cortex_config.h"
 #include "command_parser.h"
+#include "pose_dispatch.h"
 
 WiFiServerManager::WiFiServerManager() {
   wifi_connection_state = false;
@@ -45,7 +46,7 @@ bool WiFiServerManager::handle_auth_frame(const String &frame) {
 void WiFiServerManager::apply_parsed_command(const RecData_t &parsed) {
   if (parsed.mode == MINIHEXA_POSE_CONTROL) {
     pose_stream = parsed;
-    pose_stream_pending = true;
+    dispatch_pose_frame(parsed);
   }
   else if (parsed.mode == MINIHEXA_RGB_ADJUST) {
     rgb_stream = parsed;

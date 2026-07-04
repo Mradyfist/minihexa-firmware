@@ -2,6 +2,7 @@
 #include "cortex_config.h"
 #include "command_parser.h"
 #include "wifi_server.h"
+#include "pose_dispatch.h"
 
 extern WiFiServerManager wifi_server;
 
@@ -46,7 +47,7 @@ void UartServerManager::receive_message() {
     RecData_t parsed = parse_command_frame(fullData);
     if (parsed.mode == MINIHEXA_POSE_CONTROL) {
       pose_stream = parsed;
-      pose_stream_pending = true;
+      dispatch_pose_frame(parsed);
     }
     else if (parsed.mode == MINIHEXA_RGB_ADJUST) {
       rgb_stream = parsed;

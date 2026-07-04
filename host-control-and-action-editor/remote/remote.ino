@@ -3,6 +3,7 @@
 #include "ble_server.h"
 #include "wifi_server.h"
 #include "cortex_config.h"
+#include "pose_dispatch.h"
 
 Robot minihexa;
 UartServerManager uart;
@@ -27,10 +28,24 @@ Velocity_t vel = {0.0f,0.0f,0.0f};
 Vector_t pos = {0.0f,0.0f,0.0f};
 Euler_t att = {0.0f,0.0f,0.0f};
 
-static void apply_pose_message(const RecData_t &msg) {
-  uint32_t pose_time = msg.data[6] ? 200 : 0;
+static uint32_t pose_move_ms(uint8_t raw) {
+  if(raw == 0) {
+    return 0;
+  }
+  if(raw == 1) {
+    return 200;
+  }
+  return raw;
+}
 
-  if(vel.vx == 0.0f && vel.vy == 0.0f && vel.omega == 0.0f) {
+static bool velocity_is_idle(const Velocity_t &v) {
+  return fabs(v.vx) < 0.01f && fabs(v.vy) < 0.01f && fabs(v.omega) < 0.01f;
+}
+
+static void apply_pose_message(const RecData_t &msg) {
+  uint32_t pose_time = pose_move_ms(msg.data[6]);
+
+  if(velocity_is_idle(vel)) {
     minihexa.apply_pose_command(
       (int8_t)msg.data[0], (int8_t)msg.data[1], (int8_t)msg.data[2],
       (int8_t)msg.data[3], (int8_t)msg.data[4], (int8_t)msg.data[5],
@@ -88,6 +103,7 @@ void setup() {
   minihexa.begin();
   uart.begin();
   uart.on_receive(uart_receive_callback);
+  set_pose_frame_handler(apply_pose_message);
   cortex_config.begin();
   ble_server.begin();
   WiFiServerManager::station_begin();
@@ -147,20 +163,14 @@ void loop() {
   }
 
   if(ble_server.state == SWITCH_UART) {
-    if(uart.pose_stream_pending) {
-      apply_pose_message(uart.pose_stream);
-      uart.pose_stream_pending = false;
-    }
+    drain_pose_frames();
     if(uart.rgb_stream_pending) {
       apply_rgb_message(uart.rgb_stream);
       uart.rgb_stream_pending = false;
     }
   }
   else if(ble_server.state == SWITCH_WIFI) {
-    if(wifi_server.pose_stream_pending) {
-      apply_pose_message(wifi_server.pose_stream);
-      wifi_server.pose_stream_pending = false;
-    }
+    drain_pose_frames();
     if(wifi_server.rgb_stream_pending) {
       apply_rgb_message(wifi_server.rgb_stream);
       wifi_server.rgb_stream_pending = false;
@@ -174,6 +184,7 @@ void loop() {
     break;
 
   case MINIHEXA_MOVING_CONTROL:
+    clear_pose_frames();
     vel.vx = fmap((float)(int8_t)message.data[0], -50.0f, 50.0f, -3.0f, 3.0f);
     vel.vy = fmap((float)(int8_t)message.data[1], -50.0f, 50.0f, -3.0f, 3.0f);
 
