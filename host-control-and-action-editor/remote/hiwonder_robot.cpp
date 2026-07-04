@@ -151,11 +151,11 @@ static uint32_t gait_min_move_time(uint8_t gait_smooth) {
   return 400u + (uint32_t)gait_smooth * 8u;
 }
 
-static uint32_t gait_leg_servo_blend_ms(uint8_t gait_smooth) {
-  return (uint32_t)fmap((float)gait_smooth, 0.0f, 100.0f, 0.0f, 40.0f);
-}
-
 static void apply_gait_smooth_params(Robot *robot, float *step_length, uint32_t *move_time) {
+  if(robot->gait_smooth == 0) {
+    return;
+  }
+
   float smooth = robot->gait_smooth / 100.0f;
 
   *step_length *= 1.0f - 0.3f * smooth;
@@ -460,13 +460,12 @@ void Robot::update() {
 
       switch(move_state) {
         case MOVING: {
-          uint32_t leg_blend = gait_leg_servo_blend_ms(gait_smooth);
-          leg1.set_time = leg_blend;
-          leg2.set_time = leg_blend;
-          leg3.set_time = leg_blend;
-          leg4.set_time = leg_blend;
-          leg5.set_time = leg_blend;
-          leg6.set_time = leg_blend;
+          leg1.set_time = 0;
+          leg2.set_time = 0;
+          leg3.set_time = 0;
+          leg4.set_time = 0;
+          leg5.set_time = 0;
+          leg6.set_time = 0;
 
           if(gait_mode == GAIT_RIPPLE) {
             float t = tick_count / (float)move_time;
@@ -828,12 +827,15 @@ void Robot::move(Velocity_t *_velocity, Vector_t *_position, Euler_t *_euler, ui
       move_time = (time == 0) ? 0 : (time > SAMPLE_INTERVAL ? time : SAMPLE_INTERVAL);
     }
   }
-  else {
+    else {
     euler.roll = 0.0f;
     euler.yaw = 0.0f;
-    {
+    if(gait_smooth > 0) {
       uint32_t min_time = gait_min_move_time(gait_smooth);
       move_time = time > min_time ? time : min_time;
+    }
+    else {
+      move_time = time > SAMPLE_INTERVAL ? time : SAMPLE_INTERVAL;
     }
     move_state = MOVING;
     cal_omni_move_end_point();  
